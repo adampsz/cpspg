@@ -6,7 +6,7 @@ type grammar_type =
 
 module type Settings = sig
   val kind : grammar_type
-  val on_conflict : int -> Automaton.Follow.t -> Automaton.action list -> unit
+  val on_conflict : int -> Automaton.Terminal.t -> Automaton.action list -> unit
   val log : ('a, Format.formatter, unit) format -> 'a
 end
 
@@ -19,6 +19,7 @@ module StringSet = Set.Make (String)
 module StringMap = Map.Make (String)
 module SymbolSet = Set.Make (Automaton.Symbol)
 module SymbolMap = Map.Make (Automaton.Symbol)
+module TermSet = Set.Make (Automaton.Terminal)
 
 module type Grammar = sig
   val header : string
@@ -35,20 +36,47 @@ module type Automaton = sig
   val automaton : Automaton.t
 end
 
-(* Computation of FIRST sets *)
-module FIRST (G : Grammar) : sig
-  val first : Automaton.symbol -> Automaton.FirstSet.t
+module NULLABLE (G : Grammar) : sig
   val nullable : Automaton.symbol -> bool
 end = struct
   open Automaton
 
-  let null = First.Empty
+  let item_nullable null item = List.for_all (fun s -> SymbolSet.mem s null) item.i_suffix
+
+  let fold null = function
+    | Term _ -> null
+    | NTerm n when SymbolSet.mem (NTerm n) null -> null
+    | NTerm n ->
+      let group = G.group n in
+      if List.exists (item_nullable null) group.g_items
+      then SymbolSet.add (NTerm n) null
+      else null
+  ;;
+
+  let rec loop null =
+    let null' = List.fold_left fold null G.symbols in
+    if SymbolSet.equal null null' then null else loop null'
+  ;;
+
+  let nullable = loop SymbolSet.empty
+  let nullable sym = SymbolSet.mem sym nullable
+end
+
+(* Computation of FIRST sets *)
+module FIRST (G : sig
+  include Grammar
+
+  val nullable : Automaton.symbol -> bool
+end) : sig
+  val first : Automaton.symbol -> TermSet.t
+end = struct
+  open Automaton
 
   let rec fold_item first x = function
-    | [] -> FirstSet.add First.Empty x
+    | [] -> x
     | sym :: symbols ->
-      let x = FirstSet.union x (SymbolMap.find sym first) |> FirstSet.remove null in
-      if FirstSet.mem null x then fold_item first x symbols else x
+      let x = TermSet.union x (SymbolMap.find sym first) in
+      if G.nullable sym then fold_item first x symbols else x
   ;;
 
   let fold first = function
@@ -62,32 +90,32 @@ end = struct
 
   let rec loop first =
     let first' = List.fold_left fold first G.symbols in
-    if SymbolMap.equal FirstSet.equal first first' then first else loop first'
+    if SymbolMap.equal TermSet.equal first first' then first else loop first'
   ;;
 
   let init = function
-    | NTerm _ as s -> s, FirstSet.empty
-    | Term id as s -> s, FirstSet.singleton (First.Term id)
+    | NTerm _ as s -> s, TermSet.empty
+    | Term t as s -> s, TermSet.singleton t
   ;;
 
   let first = List.to_seq G.symbols |> Seq.map init |> SymbolMap.of_seq
   let first = loop first
-  let first sym = SymbolMap.find_opt sym first |> Option.value ~default:FirstSet.empty
-  let nullable sym = first sym |> FirstSet.mem First.Empty
+  let first sym = SymbolMap.find_opt sym first |> Option.value ~default:TermSet.empty
 end
 
 (** Computation of FOLLOW sets *)
 module FOLLOW (G : sig
   include Grammar
 
-  val first : Automaton.symbol -> Automaton.FirstSet.t
+  val first : Automaton.symbol -> TermSet.t
+  val nullable : Automaton.symbol -> bool
 end) : sig
-  val follow : Automaton.symbol -> Automaton.FollowSet.t
+  val follow : Automaton.symbol -> TermSet.t
 end = struct
   open Automaton
 
   let first = G.first
-  let nullable sym = first sym |> FirstSet.mem First.Empty
+  let nullable = G.nullable
 
   (** `fold_item (follow, def) symbols` adds new elements to `follow` set,
       based on production X → . β, where `symbols` is β and `def` is FOLLOW(X). *)
@@ -96,9 +124,9 @@ end = struct
     | sym :: symbols ->
       let follow, acc = fold_item (follow, def) symbols in
       let x = SymbolMap.find sym follow in
-      let follow = SymbolMap.add sym (FollowSet.union x acc) follow in
-      let y = first sym |> FirstSet.to_terminal_seq |> FollowSet.of_terminal_seq in
-      follow, if nullable sym then FollowSet.union acc y else y
+      let follow = SymbolMap.add sym (TermSet.union x acc) follow in
+      let y = first sym in
+      follow, if nullable sym then TermSet.union acc y else y
   ;;
 
   let fold follow = function
@@ -111,17 +139,13 @@ end = struct
 
   let rec loop follow =
     let follow' = List.fold_left fold follow G.symbols in
-    if SymbolMap.equal FollowSet.equal follow follow' then follow else loop follow'
+    if SymbolMap.equal TermSet.equal follow follow' then follow else loop follow'
   ;;
 
-  let init = function
-    | NTerm n as s when (G.nterm n).ni_starting -> s, FollowSet.singleton Follow.End
-    | s -> s, FollowSet.empty
-  ;;
-
+  let init s = s, TermSet.empty
   let follow = List.to_seq G.symbols |> Seq.map init |> SymbolMap.of_seq
   let follow = loop follow
-  let follow sym = SymbolMap.find_opt sym follow |> Option.value ~default:FollowSet.empty
+  let follow sym = SymbolMap.find_opt sym follow |> Option.value ~default:TermSet.empty
 end
 
 module Run (S : Settings) (I : Input) : Automaton = struct
@@ -206,9 +230,8 @@ module Run (S : Settings) (I : Input) : Automaton = struct
        then add group to `groups`. *)
     let fold_rule (actions, groups) rule =
       let prods = List.sort compare_prod_length rule.Grammar.prods in
-      let g_symbol, g_lookahead =
-        fst (Hashtbl.find nterm rule.Grammar.id), FollowSet.empty
-      in
+      let g_symbol = fst (Hashtbl.find nterm rule.Grammar.id)
+      and g_lookahead = TermSet.empty in
       let actions, g_items, _ =
         List.fold_left (fold_prod g_symbol) (actions, [], 0) prods
       in
@@ -238,33 +261,36 @@ module Run (S : Settings) (I : Input) : Automaton = struct
     let group n = NTermMap.find n groups
   end
 
-  let first, nullable =
-    let module F = FIRST (G) in
-    F.first, F.nullable
+  let nullable =
+    let module N = NULLABLE (G) in
+    N.nullable
   ;;
 
+  let first =
+    let module F = FIRST (struct include G ;; let nullable = nullable ;; end) in
+    F.first
+    [@@ocamlformat "disable"]
+
   let follow =
-    let module G = struct include G ;; let first = first ;; end in
+    let module G = struct include G ;; let nullable = nullable ;; let first = first ;; end in
     let follow = lazy (let module F = FOLLOW (G) in F.follow) in
     fun sym -> Lazy.force follow sym
     [@@ocamlformat "disable"]
 
   (** Propagates lookaheads from `item` X -> α · Y β with lookahead `lookahead`
-      onto item group Y -> . γ1 ... γn. *)
+      onto `group` Y -> . γ1 ... γn. *)
   let propagate_lookahead lookahead suffix group =
-    let to_follow fst = FirstSet.to_terminal_seq fst |> FollowSet.of_terminal_seq in
     (* `get L α` returns sum of FIRST(αl) for every l ∈ L. *)
     let rec get la = function
       (* If α is empty, FIRST(αl) = l *)
       | [] -> la
       (* When sym is nullable, we need to add FIRST(symbols) to result. *)
-      | sym :: symbols when nullable sym ->
-        FollowSet.union (first sym |> to_follow) (get la symbols)
+      | sym :: symbols when nullable sym -> TermSet.union (first sym) (get la symbols)
       (* Otherwise, just return FIRST(sym). *)
-      | sym :: _ -> first sym |> to_follow
+      | sym :: _ -> first sym
     in
     let lookahead = get lookahead suffix in
-    { group with g_lookahead = FollowSet.union group.g_lookahead lookahead }
+    { group with g_lookahead = TermSet.union group.g_lookahead lookahead }
   ;;
 
   (* Attaches closure to given state. When `lookahead` is true also propagates LR(1) lookaheads. *)
@@ -274,7 +300,7 @@ module Run (S : Settings) (I : Input) : Automaton = struct
       | { i_suffix = NTerm sym :: suffix; _ } when lookahead ->
         let group = NTermMap.find_opt sym extra |> Option.value ~default:(G.group sym) in
         let group' = propagate_lookahead la suffix group in
-        if equal_groups group group'
+        if NTermMap.mem sym extra && equal_groups group group'
         then extra, queue
         else NTermMap.add sym group' extra, group' :: queue
       (* When we see an item in a form X → α · Y β, where Y is a nonterminal which we haven't seen yet,
@@ -307,7 +333,7 @@ module Run (S : Settings) (I : Input) : Automaton = struct
     in
     { state with s_goto = List.fold_left fold_goto SymbolMap.empty G.symbols }
 
-  (** Reisters state when necessery and returns its id. *)
+  (** Registers state when necessery and returns its id. *)
   and register_state state =
     match Hashtbl.find_opt states state.s_kernel with
     | Some (id, _) -> id
@@ -322,7 +348,10 @@ module Run (S : Settings) (I : Input) : Automaton = struct
   let starting =
     let add_init_symbol = function
       | NTerm n when (G.nterm n).ni_starting ->
-        Some (n, register_state (state_of_starting_symbol n))
+        let s_kernel = [ { (G.group n) with g_starting = true } ]
+        and s_closure = [] in
+        let state = { s_kernel; s_closure; s_goto = SymbolMap.empty; s_action = [] } in
+        Some (n, register_state state)
       | NTerm _ | Term _ -> None
     in
     List.filter_map add_init_symbol G.symbols
@@ -332,12 +361,11 @@ module Run (S : Settings) (I : Input) : Automaton = struct
 
   module LR0 () = struct
     let f = function
-      | Term t -> Some (Automaton.Follow.Term t)
       | NTerm _ -> None
+      | Term t -> Some t
     ;;
 
-    let lookahead = List.to_seq G.symbols |> Seq.filter_map f |> FollowSet.of_seq
-    let lookahead = FollowSet.add Automaton.Follow.End lookahead
+    let lookahead = List.to_seq G.symbols |> Seq.filter_map f |> TermSet.of_seq
   end
 
   module LALR () = struct
@@ -389,7 +417,7 @@ module Run (S : Settings) (I : Input) : Automaton = struct
       | [] | [ _ ] -> ()
       | moves -> S.on_conflict id sym moves
     in
-    List.iter (fun (s, m) -> FollowSet.iter (add_move m) s) moves;
+    List.iter (fun (s, m) -> TermSet.iter (add_move m) s) moves;
     Hashtbl.iter check_conflict map
   ;;
 
@@ -404,10 +432,10 @@ module Run (S : Settings) (I : Input) : Automaton = struct
     and add_shift moves s =
       let f = function
         | NTerm _, _ -> None
-        | Term t, _ -> Some (Automaton.Follow.Term t)
+        | Term t, _ -> Some t
       in
-      let lookahead = SymbolMap.to_seq s.s_goto |> Seq.filter_map f |> FollowSet.of_seq in
-      if FollowSet.is_empty lookahead then moves else (lookahead, Shift) :: moves
+      let lookahead = SymbolMap.to_seq s.s_goto |> Seq.filter_map f |> TermSet.of_seq in
+      if TermSet.is_empty lookahead then moves else (lookahead, Shift) :: moves
     in
     let closure = state.s_kernel @ state.s_closure in
     List.fold_left add_reduce (0, add_shift [] state) closure |> snd

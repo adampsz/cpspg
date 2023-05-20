@@ -39,11 +39,7 @@ let _ = Arg.parse specs (fun x -> source_name := Some x) usage
 
 let print_conflicts term conflicts =
   let iter (id, sym, moves) =
-    let sym =
-      match sym with
-      | Cpspg.Automaton.Follow.Term t -> (term t).Cpspg.Automaton.ti_name
-      | Cpspg.Automaton.Follow.End -> "$"
-    in
+    let sym = (term sym).Cpspg.Automaton.ti_name in
     Format.eprintf "Conflict in state %d on symbol %s:\n" id sym;
     let f = function
       | Cpspg.Automaton.Shift -> Format.eprintf "  - shift\n"
@@ -94,12 +90,8 @@ let main () =
     match !source_name with
     | None | Some "-" -> Lexing.from_channel stdin
     | Some x -> Lexing.from_channel (open_in x)
-  and lexfun lexbuf =
-    match Cpspg.Lexer.token lexbuf with
-    | Cpspg.Parser.EOF -> None
-    | t -> Some t
   in
-  let grammar = Cpspg.Parser.grammar lexbuf lexfun in
+  let grammar = Cpspg.Parser.grammar lexbuf Cpspg.Lexer.token in
   let conflicts = ref [] in
   (* Generate automaton *)
   let module Settings = struct

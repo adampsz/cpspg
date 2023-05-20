@@ -10,7 +10,7 @@
 %%
 
 grammar:
-    | header decls DSEP rules { { header; decls; rules } }
+    | header decls DSEP rules EOF { { header; decls; rules } }
 ;
 
 header:

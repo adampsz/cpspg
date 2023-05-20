@@ -13,11 +13,7 @@ struct
     | NTerm n -> Format.pp_print_string f (nterm_name n)
   ;;
 
-  let fmt_follow f = function
-    | Follow.Term t -> Format.fprintf f " /%s" (term_name t)
-    | Follow.End -> Format.fprintf f " /$"
-  ;;
-
+  let fmt_follow f t = Format.fprintf f " /%s" (term_name t)
   let fmt_args f args = List.iter (Format.fprintf f " %a" fmt_arg) args
 
   let fmt_item f group item =
@@ -26,7 +22,7 @@ struct
     and pref = List.rev group.g_prefix
     and suff = item.i_suffix in
     Format.fprintf f "%s%s →%a .%a" name i fmt_args pref fmt_args suff;
-    FollowSet.iter (fmt_follow f) group.g_lookahead
+    TermSet.iter (fmt_follow f) group.g_lookahead
   ;;
 
   let fmt_group f group =
@@ -41,15 +37,13 @@ struct
   ;;
 
   let fmt_state_actions f state =
-    let fmt_sym = function
-      | Follow.Term t -> Format.fprintf f " %s" (term_name t)
-      | Follow.End -> Format.fprintf f " $"
+    let fmt_sym t = Format.fprintf f " %s" (term_name t)
     and fmt_state_action = function
       | Shift -> Format.fprintf f "shift"
       | Reduce (i, j) -> Format.fprintf f "reduce %d %d" i j
     in
     let fmt_move (la, move) =
-      FollowSet.iter fmt_sym la;
+      TermSet.iter fmt_sym la;
       Format.fprintf f " -> ";
       fmt_state_action move;
       Format.fprintf f "\n"

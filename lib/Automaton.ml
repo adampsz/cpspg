@@ -47,34 +47,8 @@ module First = struct
   ;;
 end
 
-module Follow = struct
-  type t =
-    | Term of Terminal.t
-    | End
-
-  let compare : t -> t -> int = compare
-
-  let to_terminal = function
-    | Term t -> Some t
-    | _ -> None
-  ;;
-end
-
-module FirstSet = struct
-  include Set.Make (First)
-
-  let of_terminal_seq seq = Seq.map (fun t -> First.Term t) seq |> of_seq
-  let to_terminal_seq set = to_seq set |> Seq.filter_map First.to_terminal
-end
-
-module FollowSet = struct
-  include Set.Make (Follow)
-
-  let of_terminal_seq seq = Seq.map (fun t -> Follow.Term t) seq |> of_seq
-  let to_terminal_seq set = to_seq set |> Seq.filter_map Follow.to_terminal
-end
-
 module SymbolMap = Map.Make (Symbol)
+module TermSet = Set.Make (Terminal)
 module IntMap = Map.Make (Int)
 
 type symbol = Symbol.t =
@@ -93,7 +67,7 @@ type group =
   { g_symbol : Nonterminal.t (** Nonterminal. *)
   ; g_prefix : symbol list (** Prefix common to all items in this group. *)
   ; g_items : item list (** Items. *)
-  ; g_lookahead : FollowSet.t (** Lookahead symbols. Empty for LR(0) group. *)
+  ; g_lookahead : TermSet.t (** Lookahead symbols. Empty for LR(0) group. *)
   ; g_starting : bool (** Whether symbol is a starting symbol from augmented grammar. *)
   }
 
@@ -116,7 +90,7 @@ type state =
   ; s_closure : group list
       (** Additional item groups added by CLOSURE, not present in kernel *)
   ; s_goto : int SymbolMap.t (** Successors *)
-  ; s_action : (FollowSet.t * action) list
+  ; s_action : (TermSet.t * action) list
       (** Map from lookahead terminal symbol to
           the corresponding parsing decision. *)
   }
@@ -139,8 +113,8 @@ type t =
   }
 
 let equal_groups a b =
-  { a with g_lookahead = FollowSet.empty } = { b with g_lookahead = FollowSet.empty }
-  && FollowSet.equal a.g_lookahead b.g_lookahead
+  { a with g_lookahead = TermSet.empty } = { b with g_lookahead = TermSet.empty }
+  && TermSet.equal a.g_lookahead b.g_lookahead
 ;;
 
 let equal_states a b =
@@ -149,9 +123,9 @@ let equal_states a b =
 ;;
 
 let merge_groups a b =
-  let empty = FollowSet.empty in
+  let empty = TermSet.empty in
   assert ({ a with g_lookahead = empty } = { b with g_lookahead = empty });
-  { a with g_lookahead = FollowSet.union a.g_lookahead b.g_lookahead }
+  { a with g_lookahead = TermSet.union a.g_lookahead b.g_lookahead }
 ;;
 
 let merge_states a b =
@@ -196,7 +170,7 @@ let item_of_starting_symbol symbol = { i_suffix = [ NTerm symbol ]; i_action = 0
 
 let group_of_starting_symbol symbol =
   let g_items = [ item_of_starting_symbol symbol ]
-  and g_lookahead = FollowSet.singleton Follow.End in
+  and g_lookahead = TermSet.empty in
   { g_symbol = symbol; g_prefix = []; g_items; g_lookahead; g_starting = true }
 ;;
 

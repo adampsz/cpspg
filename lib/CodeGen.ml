@@ -107,16 +107,15 @@ module Run (S : Settings) (I : Input) = struct
     List.iteri iter symbols
   ;;
 
-  let gen_token_pat x = function
-    | Follow.Term t when symbol_has_value (Term t) ->
-      Format.fprintf I.f "Some (%s %s)" (symbol_name (Term t)) x
-    | Follow.Term t -> Format.fprintf I.f "Some %s" (symbol_name (Term t))
-    | Follow.End -> Format.fprintf I.f "None"
+  let gen_token_pat x t =
+    if symbol_has_value (Term t)
+    then Format.fprintf I.f "%s %s" (symbol_name (Term t)) x
+    else Format.fprintf I.f "%s" (symbol_name (Term t))
   ;;
 
   let gen_token_pats lookahead =
     let f sym = Format.fprintf I.f "| %t " (fun _ -> gen_token_pat "_" sym) in
-    FollowSet.iter f lookahead
+    TermSet.iter f lookahead
   ;;
 
   let gen_shift state sym =
@@ -147,18 +146,14 @@ module Run (S : Settings) (I : Input) = struct
   ;;
 
   let gen_move_shift state sym =
-    let to_sym = function
-      | Follow.Term t -> Term t
-      | _ -> assert false
-    in
     if S.comments then Format.fprintf I.f "    (* Shift *)\n";
     Format.fprintf I.f "    | %t ->\n" (fun _ -> gen_token_pat "x" sym);
     Format.fprintf I.f "      let _ = shift () in\n";
-    Format.fprintf I.f "      %t\n" (fun _ -> gen_shift state (to_sym sym))
+    Format.fprintf I.f "      %t\n" (fun _ -> gen_shift state (Term sym))
   ;;
 
   let gen_move state lookahead = function
-    | Shift -> FollowSet.iter (gen_move_shift state) lookahead
+    | Shift -> TermSet.iter (gen_move_shift state) lookahead
     | Reduce (i, j) ->
       if S.comments then Format.fprintf I.f "    (* Reduce *)\n";
       let group = List.nth (state.s_kernel @ state.s_closure) i in
@@ -181,6 +176,14 @@ module Run (S : Settings) (I : Input) = struct
     Format.fprintf I.f "    | _ -> raise (Failure \"error in state %d\")\n" id
   ;;
 
+  let gen_state_match_starting state =
+    if S.comments then Format.fprintf I.f "    (* Reduce *)\n";
+    let group = List.hd state.s_kernel in
+    let item = List.nth group.g_items 0 in
+    Format.fprintf I.f "    let x =%t in\n" (fun _ -> gen_action_call group item);
+    Format.fprintf I.f "    %t x\n" (fun _ -> gen_cont_id group 0)
+  ;;
+
   let gen_state_body id state =
     let kn = List.length state.s_kernel in
     let gen_state_cont_def i items pre post =
@@ -188,7 +191,10 @@ module Run (S : Settings) (I : Input) = struct
       Format.fprintf I.f "    %s %t%s\n" pre fc post
     in
     gen_letrec gen_state_cont_def state.s_closure;
-    gen_state_match id state
+    let group = List.hd state.s_kernel in
+    if group.g_starting && (List.hd group.g_items).i_suffix = []
+    then gen_state_match_starting state
+    else gen_state_match id state
   ;;
 
   let gen_state_comment state =
