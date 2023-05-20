@@ -1,0 +1,21 @@
+{}
+
+%token PLUS STAR LPAREN RPAREN ID
+%start e
+
+%%
+
+e:
+    | e PLUS t {()}
+    | t        {()}
+;
+
+t:
+    | t STAR f {()}
+    | f        {()}
+;
+
+f:
+    | LPAREN e RPAREN {()}
+    | ID              {()}
+;

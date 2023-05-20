@@ -1,0 +1,4 @@
+(executable
+ (public_name cpspg)
+ (name main)
+ (libraries cpspg))
