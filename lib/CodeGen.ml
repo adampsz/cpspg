@@ -85,7 +85,7 @@ module Run (S : Settings) (I : Input) = struct
     | false, _ -> Format.fprintf I.f "c%d" i
   ;;
 
-  let gen_action_id a i =
+  let gen_semantic_action_id a i =
     if S.readable_ids
     then Format.fprintf I.f "a%d_%s" i (symbol_name (NTerm a.sa_symbol))
     else Format.fprintf I.f "a%d" i
@@ -140,20 +140,20 @@ module Run (S : Settings) (I : Input) = struct
       gen_arg_ids group.g_prefix
     | { i_action; _ } ->
       let action = IntMap.find i_action I.automaton.a_actions in
-      Format.fprintf I.f " Actions.%t" (fun _ -> gen_action_id action i_action);
+      Format.fprintf I.f " Actions.%t" (fun _ -> gen_semantic_action_id action i_action);
       gen_arg_ids group.g_prefix;
       Format.fprintf I.f " ()"
   ;;
 
-  let gen_move_shift state sym =
+  let gen_action_shift state sym =
     if S.comments then Format.fprintf I.f "    (* Shift *)\n";
     Format.fprintf I.f "    | %t ->\n" (fun _ -> gen_token_pat "x" sym);
     Format.fprintf I.f "      let _ = shift () in\n";
     Format.fprintf I.f "      %t\n" (fun _ -> gen_shift state (Term sym))
   ;;
 
-  let gen_move state lookahead = function
-    | Shift -> TermSet.iter (gen_move_shift state) lookahead
+  let gen_action state lookahead = function
+    | Shift -> TermSet.iter (gen_action_shift state) lookahead
     | Reduce (i, j) ->
       if S.comments then Format.fprintf I.f "    (* Reduce *)\n";
       let group = List.nth (state.s_kernel @ state.s_closure) i in
@@ -172,7 +172,7 @@ module Run (S : Settings) (I : Input) = struct
 
   let gen_state_match id state =
     Format.fprintf I.f "    match lookahead () with\n";
-    List.iter (fun (l, m) -> gen_move state l m) state.s_action;
+    List.iter (fun (l, m) -> gen_action state l m) state.s_action;
     Format.fprintf I.f "    | _ -> raise (Failure \"error in state %d\")\n" id
   ;;
 
@@ -214,14 +214,14 @@ module Run (S : Settings) (I : Input) = struct
     gen_state_body id state
   ;;
 
-  let gen_action id action =
+  let gen_semantic_action id action =
     let item = List.nth (I.group action.sa_symbol).g_items action.sa_index in
     let f s = function
       | _ when symbol_has_value s = false -> ()
       | Some a -> Format.fprintf I.f " %s" a
       | None -> Format.fprintf I.f " _"
     in
-    gen_action_id action id;
+    gen_semantic_action_id action id;
     List.iter2 f (List.rev item.i_suffix) (List.rev action.sa_args);
     Format.fprintf I.f " () = %s" (String.trim action.sa_code)
   ;;
@@ -249,7 +249,8 @@ module Run (S : Settings) (I : Input) = struct
   ;;
 
   let _ =
-    let gen_action id a = Format.fprintf I.f "  let %t\n" (fun _ -> gen_action id a)
+    let gen_semantic_action id a =
+      Format.fprintf I.f "  let %t\n" (fun _ -> gen_semantic_action id a)
     and gen_state _ (id, s) pre post =
       if S.comments then gen_state_comment s;
       Format.fprintf I.f "  %s %t%s" pre (fun _ -> gen_state id s) post
@@ -258,7 +259,7 @@ module Run (S : Settings) (I : Input) = struct
     Format.fprintf I.f "%s\n\n" header;
     gen_tokens I.symbols;
     Format.fprintf I.f "module Actions = struct\n";
-    IntMap.iter gen_action I.automaton.a_actions;
+    IntMap.iter gen_semantic_action I.automaton.a_actions;
     Format.fprintf I.f "end\n\n";
     Format.fprintf I.f "module States = struct\n%s" lib;
     IntMap.bindings I.automaton.a_states

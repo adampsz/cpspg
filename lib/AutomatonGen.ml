@@ -408,48 +408,48 @@ module Run (S : Settings) (I : Input) : Automaton = struct
       fun g -> g.g_lookahead
   ;;
 
-  let check_conflicts id moves =
+  let check_conflicts id actions =
     let map = Hashtbl.create 32 in
-    let add_move move symbol =
-      let moves = Hashtbl.find_opt map symbol |> Option.value ~default:[] in
-      Hashtbl.replace map symbol (move :: moves)
+    let add_action action symbol =
+      let actions = Hashtbl.find_opt map symbol |> Option.value ~default:[] in
+      Hashtbl.replace map symbol (action :: actions)
     and check_conflict sym = function
       | [] | [ _ ] -> ()
-      | moves -> S.on_conflict id sym moves
+      | actions -> S.on_conflict id sym actions
     in
-    List.iter (fun (s, m) -> TermSet.iter (add_move m) s) moves;
+    List.iter (fun (s, m) -> TermSet.iter (add_action m) s) actions;
     Hashtbl.iter check_conflict map
   ;;
 
-  let determine_moves state =
-    let add_reduce (i, moves) g =
-      let f (j, moves) = function
-        | { i_suffix = []; _ } -> j + 1, (lookahead g, Reduce (i, j)) :: moves
-        | _ -> j + 1, moves
+  let determine_actions state =
+    let add_reduce (i, actions) g =
+      let f (j, actions) = function
+        | { i_suffix = []; _ } -> j + 1, (lookahead g, Reduce (i, j)) :: actions
+        | _ -> j + 1, actions
       in
-      let _, moves = List.fold_left f (0, moves) g.g_items in
-      i + 1, moves
-    and add_shift moves s =
+      let _, actions = List.fold_left f (0, actions) g.g_items in
+      i + 1, actions
+    and add_shift actions s =
       let f = function
         | NTerm _, _ -> None
         | Term t, _ -> Some t
       in
       let lookahead = SymbolMap.to_seq s.s_goto |> Seq.filter_map f |> TermSet.of_seq in
-      if TermSet.is_empty lookahead then moves else (lookahead, Shift) :: moves
+      if TermSet.is_empty lookahead then actions else (lookahead, Shift) :: actions
     in
     let closure = state.s_kernel @ state.s_closure in
     List.fold_left add_reduce (0, add_shift [] state) closure |> snd
   ;;
 
-  let attach_moves id =
+  let attach_actions id =
     let state = Hashtbl.find states id in
-    let action = determine_moves state in
+    let action = determine_actions state in
     check_conflicts id action;
     Hashtbl.replace states id { state with s_action = action }
   ;;
 
   let ids = Hashtbl.to_seq_keys states |> List.of_seq
-  let _ = List.iter attach_moves ids
+  let _ = List.iter attach_actions ids
 
   let automaton =
     { a_header = G.header

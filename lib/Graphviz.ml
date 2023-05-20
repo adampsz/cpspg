@@ -42,26 +42,26 @@ struct
       | Shift -> Format.fprintf f "shift"
       | Reduce (i, j) -> Format.fprintf f "reduce %d %d" i j
     in
-    let fmt_move (la, move) =
+    let fmt_action (la, action) =
       TermSet.iter fmt_sym la;
       Format.fprintf f " -> ";
-      fmt_state_action move;
+      fmt_state_action action;
       Format.fprintf f "\n"
     in
-    List.iter fmt_move state.s_action
+    List.iter fmt_action state.s_action
   ;;
 
   let fmt_automaton f automaton =
     let replace c r s = String.split_on_char c s |> String.concat r in
     let escape s = s |> replace '"' "\\\"" |> replace '\n' "\\l" in
-    let fmt_move id arg id' =
+    let fmt_action id arg id' =
       let arg = Format.asprintf "%a" fmt_arg arg |> escape in
       Format.fprintf f "  s%d -> s%d [ taillabel = \"%s\"; ];\n" id id' arg
     in
     let fmt_node id s =
       let items = Format.asprintf "%a" fmt_state s |> escape in
       Format.fprintf f "  s%d [ xlabel = s%d; label = \"%s\"; ];\n" id id items;
-      SymbolMap.iter (fun arg id' -> fmt_move id arg id') s.s_goto
+      SymbolMap.iter (fun arg id' -> fmt_action id arg id') s.s_goto
     in
     Format.fprintf f "digraph g {\n";
     Format.fprintf f "  nodesep = 1; pack = true;\n";

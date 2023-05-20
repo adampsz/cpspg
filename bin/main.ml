@@ -38,7 +38,7 @@ let specs =
 let _ = Arg.parse specs (fun x -> source_name := Some x) usage
 
 let print_conflicts term conflicts =
-  let iter (id, sym, moves) =
+  let iter (id, sym, actions) =
     let sym = (term sym).Cpspg.Automaton.ti_name in
     Format.eprintf "Conflict in state %d on symbol %s:\n" id sym;
     let f = function
@@ -46,7 +46,7 @@ let print_conflicts term conflicts =
       | Cpspg.Automaton.Reduce (i, j) ->
         Format.eprintf "  - reduce item %d in group %d\n" i j
     in
-    List.iter f moves;
+    List.iter f actions;
     Format.eprintf "%!"
   in
   List.iter iter conflicts
@@ -96,7 +96,7 @@ let main () =
   (* Generate automaton *)
   let module Settings = struct
     let kind = !grammar_kind
-    let on_conflict id sym moves = conflicts := (id, sym, moves) :: !conflicts
+    let on_conflict id sym actions = conflicts := (id, sym, actions) :: !conflicts
     let log = Format.eprintf
   end
   in
