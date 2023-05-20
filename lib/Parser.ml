@@ -17,32 +17,32 @@ type token =
   | EOF
 
 module Actions = struct
-  let action_1 rules decls header () = { header; decls; rules }
-  let action_2 header () = header
-  let action_3 decls decl () = decl :: decls
-  let action_4 () = []
-  let action_5 tids tp () = DeclToken (Some tp, tids)
-  let action_6 ids tp () = DeclStart (Some tp, ids)
-  let action_7 tids () = DeclToken (None, tids)
-  let action_8 ids () = DeclStart (None, ids)
-  let action_9 tids id () = id :: tids
-  let action_10 () = []
-  let action_11 ids id () = id :: ids
-  let action_12 () = []
-  let action_13 rules rule () = rule :: rules
-  let action_14 () = []
-  let action_15 prods id () = { id; prods }
-  let action_16 productions production () = production :: productions
-  let action_17 productions () = productions
-  let action_18 productions production () = production :: productions
-  let action_19 () = []
-  let action_20 action prod () = { prod; action }
-  let action_21 producers producer () = producer :: producers
-  let action_22 () = []
-  let action_23 actual id () = { id = Some id; actual }
-  let action_24 actual () = { id = None; actual }
-  let action_25 name () = NTerm name
-  let action_26 name () = Term name
+  let a1_grammar rules decls header () = { header; decls; rules }
+  let a2_header header () = header
+  let a3_decls decls decl () = decl :: decls
+  let a4_decls () = []
+  let a5_decl tids tp () = DeclToken (Some tp, tids)
+  let a6_decl ids tp () = DeclStart (Some tp, ids)
+  let a7_decl tids () = DeclToken (None, tids)
+  let a8_decl ids () = DeclStart (None, ids)
+  let a9_tids tids id () = id :: tids
+  let a10_tids () = []
+  let a11_ids ids id () = id :: ids
+  let a12_ids () = []
+  let a13_rules rules rule () = rule :: rules
+  let a14_rules () = []
+  let a15_rule prods id () = { id; prods }
+  let a16_rule_prods productions production () = production :: productions
+  let a17_rule_prods productions () = productions
+  let a18_productions productions production () = production :: productions
+  let a19_productions () = []
+  let a20_production action prod () = { prod; action }
+  let a21_producers producers producer () = producer :: producers
+  let a22_producers () = []
+  let a23_producer actual id () = { id = Some id; actual }
+  let a24_producer actual () = { id = None; actual }
+  let a25_actual name () = NTerm name
+  let a26_actual name () = Term name
 end
 
 module States = struct
@@ -101,7 +101,7 @@ module States = struct
     match lookahead () with
     (* Reduce *)
     | Some DTOKEN | Some DSTART | Some DSEP ->
-      let x = Actions.action_2 a0_CODE () in
+      let x = Actions.a2_header a0_CODE () in
       c0_header x
     | _ -> raise (Failure "error in state 1")
 
@@ -141,7 +141,7 @@ module States = struct
     match lookahead () with
     (* Reduce *)
     | Some DSEP ->
-      let x = Actions.action_4 () in
+      let x = Actions.a4_decls () in
       c1_decls x
     (* Shift *)
     | Some DTOKEN ->
@@ -170,7 +170,7 @@ module States = struct
     match lookahead () with
     (* Reduce *)
     | Some DTOKEN | Some DSTART | Some DSEP ->
-      let x = Actions.action_10 () in
+      let x = Actions.a10_tids () in
       c1_tids x
     (* Shift *)
     | Some (TID x) ->
@@ -197,7 +197,7 @@ module States = struct
     match lookahead () with
     (* Reduce *)
     | Some DTOKEN | Some DSTART | Some DSEP ->
-      let x = Actions.action_10 () in
+      let x = Actions.a10_tids () in
       c1_tids x
     (* Shift *)
     | Some (TID x) ->
@@ -215,7 +215,7 @@ module States = struct
     match lookahead () with
     (* Reduce *)
     | Some DTOKEN | Some DSTART | Some DSEP ->
-      let x = Actions.action_9 a0_tids a1_TID () in
+      let x = Actions.a9_tids a0_tids a1_TID () in
       c0_tids x
     | _ -> raise (Failure "error in state 6")
 
@@ -234,7 +234,7 @@ module States = struct
     match lookahead () with
     (* Reduce *)
     | Some DTOKEN | Some DSTART | Some DSEP ->
-      let x = Actions.action_10 () in
+      let x = Actions.a10_tids () in
       c1_tids x
     (* Shift *)
     | Some (TID x) ->
@@ -252,7 +252,7 @@ module States = struct
     match lookahead () with
     (* Reduce *)
     | Some DTOKEN | Some DSTART | Some DSEP ->
-      let x = Actions.action_5 a0_tids a1_TYPE () in
+      let x = Actions.a5_decl a0_tids a1_TYPE () in
       c0_decl x
     | _ -> raise (Failure "error in state 8")
 
@@ -266,7 +266,7 @@ module States = struct
     match lookahead () with
     (* Reduce *)
     | Some DTOKEN | Some DSTART | Some DSEP ->
-      let x = Actions.action_7 a0_tids () in
+      let x = Actions.a7_decl a0_tids () in
       c0_decl x
     | _ -> raise (Failure "error in state 9")
 
@@ -287,7 +287,7 @@ module States = struct
     match lookahead () with
     (* Reduce *)
     | Some DTOKEN | Some DSTART | Some DSEP ->
-      let x = Actions.action_12 () in
+      let x = Actions.a12_ids () in
       c1_ids x
     (* Shift *)
     | Some (ID x) ->
@@ -314,7 +314,7 @@ module States = struct
     match lookahead () with
     (* Reduce *)
     | Some DTOKEN | Some DSTART | Some DSEP ->
-      let x = Actions.action_12 () in
+      let x = Actions.a12_ids () in
       c1_ids x
     (* Shift *)
     | Some (ID x) ->
@@ -332,7 +332,7 @@ module States = struct
     match lookahead () with
     (* Reduce *)
     | Some DTOKEN | Some DSTART | Some DSEP ->
-      let x = Actions.action_11 a0_ids a1_ID () in
+      let x = Actions.a11_ids a0_ids a1_ID () in
       c0_ids x
     | _ -> raise (Failure "error in state 12")
 
@@ -351,7 +351,7 @@ module States = struct
     match lookahead () with
     (* Reduce *)
     | Some DTOKEN | Some DSTART | Some DSEP ->
-      let x = Actions.action_12 () in
+      let x = Actions.a12_ids () in
       c1_ids x
     (* Shift *)
     | Some (ID x) ->
@@ -369,7 +369,7 @@ module States = struct
     match lookahead () with
     (* Reduce *)
     | Some DTOKEN | Some DSTART | Some DSEP ->
-      let x = Actions.action_6 a0_ids a1_TYPE () in
+      let x = Actions.a6_decl a0_ids a1_TYPE () in
       c0_decl x
     | _ -> raise (Failure "error in state 14")
 
@@ -383,7 +383,7 @@ module States = struct
     match lookahead () with
     (* Reduce *)
     | Some DTOKEN | Some DSTART | Some DSEP ->
-      let x = Actions.action_8 a0_ids () in
+      let x = Actions.a8_decl a0_ids () in
       c0_decl x
     | _ -> raise (Failure "error in state 15")
 
@@ -419,7 +419,7 @@ module States = struct
     match lookahead () with
     (* Reduce *)
     | None ->
-      let x = Actions.action_14 () in
+      let x = Actions.a14_rules () in
       c1_rules x
     (* Shift *)
     | Some (ID x) ->
@@ -478,11 +478,11 @@ module States = struct
     match lookahead () with
     (* Reduce *)
     | Some (CODE _) ->
-      let x = Actions.action_22 () in
+      let x = Actions.a22_producers () in
       c4_producers x
     (* Reduce *)
     | Some SEMI ->
-      let x = Actions.action_19 () in
+      let x = Actions.a19_productions () in
       c2_productions x
     (* Shift *)
     | Some (ID x) ->
@@ -510,7 +510,7 @@ module States = struct
     match lookahead () with
     (* Reduce *)
     | Some (ID _) | Some (TID _) | Some (CODE _) ->
-      let x = Actions.action_25 a0_ID () in
+      let x = Actions.a25_actual a0_ID () in
       c1_actual x
     (* Shift *)
     | Some EQ ->
@@ -551,7 +551,7 @@ module States = struct
     match lookahead () with
     (* Reduce *)
     | Some (ID _) | Some (TID _) | Some (CODE _) ->
-      let x = Actions.action_25 a0_ID () in
+      let x = Actions.a25_actual a0_ID () in
       c0_actual x
     | _ -> raise (Failure "error in state 22")
 
@@ -565,7 +565,7 @@ module States = struct
     match lookahead () with
     (* Reduce *)
     | Some (ID _) | Some (TID _) | Some (CODE _) ->
-      let x = Actions.action_26 a0_TID () in
+      let x = Actions.a26_actual a0_TID () in
       c0_actual x
     | _ -> raise (Failure "error in state 23")
 
@@ -579,7 +579,7 @@ module States = struct
     match lookahead () with
     (* Reduce *)
     | Some (ID _) | Some (TID _) | Some (CODE _) ->
-      let x = Actions.action_23 a0_actual a2_ID () in
+      let x = Actions.a23_producer a0_actual a2_ID () in
       c0_producer x
     | _ -> raise (Failure "error in state 24")
 
@@ -610,7 +610,7 @@ module States = struct
     match lookahead () with
     (* Reduce *)
     | Some (CODE _) ->
-      let x = Actions.action_22 () in
+      let x = Actions.a22_producers () in
       c2_producers x
     (* Shift *)
     | Some (ID x) ->
@@ -637,7 +637,7 @@ module States = struct
     match lookahead () with
     (* Reduce *)
     | Some SEMI ->
-      let x = Actions.action_19 () in
+      let x = Actions.a19_productions () in
       c1_productions x
     (* Shift *)
     | Some BAR ->
@@ -655,7 +655,7 @@ module States = struct
     match lookahead () with
     (* Reduce *)
     | Some SEMI ->
-      let x = Actions.action_18 a0_productions a1_production () in
+      let x = Actions.a18_productions a0_productions a1_production () in
       c0_productions x
     | _ -> raise (Failure "error in state 27")
 
@@ -683,7 +683,7 @@ module States = struct
     match lookahead () with
     (* Reduce *)
     | Some SEMI | Some BAR ->
-      let x = Actions.action_20 a0_CODE a1_producers () in
+      let x = Actions.a20_production a0_CODE a1_producers () in
       c0_production x
     | _ -> raise (Failure "error in state 29")
 
@@ -711,7 +711,7 @@ module States = struct
     match lookahead () with
     (* Reduce *)
     | Some (CODE _) ->
-      let x = Actions.action_22 () in
+      let x = Actions.a22_producers () in
       c1_producers x
     (* Shift *)
     | Some (ID x) ->
@@ -733,7 +733,7 @@ module States = struct
     match lookahead () with
     (* Reduce *)
     | Some (CODE _) ->
-      let x = Actions.action_21 a0_producers a1_producer () in
+      let x = Actions.a21_producers a0_producers a1_producer () in
       c0_producers x
     | _ -> raise (Failure "error in state 31")
 
@@ -747,7 +747,7 @@ module States = struct
     match lookahead () with
     (* Reduce *)
     | Some (ID _) | Some (TID _) | Some (CODE _) ->
-      let x = Actions.action_24 a0_actual () in
+      let x = Actions.a24_producer a0_actual () in
       c0_producer x
     | _ -> raise (Failure "error in state 32")
 
@@ -775,7 +775,7 @@ module States = struct
     match lookahead () with
     (* Reduce *)
     | None | Some (ID _) ->
-      let x = Actions.action_15 a1_rule_prods a3_ID () in
+      let x = Actions.a15_rule a1_rule_prods a3_ID () in
       c0_rule x
     | _ -> raise (Failure "error in state 34")
 
@@ -789,7 +789,7 @@ module States = struct
     match lookahead () with
     (* Reduce *)
     | Some SEMI ->
-      let x = Actions.action_17 a0_productions () in
+      let x = Actions.a17_rule_prods a0_productions () in
       c0_rule_prods x
     | _ -> raise (Failure "error in state 35")
 
@@ -808,7 +808,7 @@ module States = struct
     match lookahead () with
     (* Reduce *)
     | Some SEMI ->
-      let x = Actions.action_19 () in
+      let x = Actions.a19_productions () in
       c1_productions x
     (* Shift *)
     | Some BAR ->
@@ -826,7 +826,7 @@ module States = struct
     match lookahead () with
     (* Reduce *)
     | Some SEMI ->
-      let x = Actions.action_16 a0_productions a1_production () in
+      let x = Actions.a16_rule_prods a0_productions a1_production () in
       c0_rule_prods x
     | _ -> raise (Failure "error in state 37")
 
@@ -840,7 +840,7 @@ module States = struct
     match lookahead () with
     (* Reduce *)
     | None ->
-      let x = Actions.action_1 a0_rules a2_decls a3_header () in
+      let x = Actions.a1_grammar a0_rules a2_decls a3_header () in
       c0_grammar x
     | _ -> raise (Failure "error in state 38")
 
@@ -862,7 +862,7 @@ module States = struct
     match lookahead () with
     (* Reduce *)
     | None ->
-      let x = Actions.action_14 () in
+      let x = Actions.a14_rules () in
       c1_rules x
     (* Shift *)
     | Some (ID x) ->
@@ -880,7 +880,7 @@ module States = struct
     match lookahead () with
     (* Reduce *)
     | None ->
-      let x = Actions.action_13 a0_rules a1_rule () in
+      let x = Actions.a13_rules a0_rules a1_rule () in
       c0_rules x
     | _ -> raise (Failure "error in state 40")
 
@@ -906,7 +906,7 @@ module States = struct
     match lookahead () with
     (* Reduce *)
     | Some DSEP ->
-      let x = Actions.action_4 () in
+      let x = Actions.a4_decls () in
       c1_decls x
     (* Shift *)
     | Some DTOKEN ->
@@ -928,7 +928,7 @@ module States = struct
     match lookahead () with
     (* Reduce *)
     | Some DSEP ->
-      let x = Actions.action_3 a0_decls a1_decl () in
+      let x = Actions.a3_decls a0_decls a1_decl () in
       c0_decls x
     | _ -> raise (Failure "error in state 42")
   ;;

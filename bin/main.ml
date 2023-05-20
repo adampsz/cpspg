@@ -1,38 +1,99 @@
-type mode =
-  | Code
-  | Automaton
-
-let usage = "cpspg\ncpspg -A"
-let mode = ref Code
+let usage = "usage: cpspg [options] sourcefile"
+let source_name = ref None
+let output_name = ref None
+let output_automaton = ref None
 let grammar_kind = ref Cpspg.AutomatonGen.LALR
-let gen_comments = ref false
-let gen_readable_ids = ref false
+let codegen_comments = ref false
+let codegen_readable_ids = ref false
 
-let set_grammar_kind = function
-  | "LR0" -> grammar_kind := Cpspg.AutomatonGen.LR0
-  | "SLR" -> grammar_kind := Cpspg.AutomatonGen.SLR
-  | "LR1" -> grammar_kind := Cpspg.AutomatonGen.LR1
-  | "LALR" -> grammar_kind := Cpspg.AutomatonGen.LALR
-  | _ -> failwith "Unknown grammar type"
-;;
-
-let speclist =
-  [ ( "-A"
-    , Arg.Unit (fun _ -> mode := Automaton)
-    , "Output automaton graph in .dot format instead of code" )
-  ; "--grammar-kind", Arg.String set_grammar_kind, "Change grammar type [default: LALR]"
-  ; ( "--gen-comments"
-    , Arg.Unit (fun _ -> gen_comments := true)
-    , "Include comments in generated code" )
-  ; ( "--gen-readable-ids"
-    , Arg.Unit (fun _ -> gen_readable_ids := true)
-    , "Generate readable ids in code" )
+let specs =
+  [ ( "-o"
+    , Arg.String (fun x -> output_name := Some x)
+    , "<file> Set output file name to <file>" )
+  ; ( "--automaton"
+    , Arg.String (fun x -> output_automaton := Some x)
+    , "<file> Dump automaton graph in .dot format to <file>" )
+    (* Grammar kind *)
+  ; ( "--lr0"
+    , Arg.Unit (fun _ -> grammar_kind := Cpspg.AutomatonGen.LR0)
+    , "Construct a LR(0) automaton" )
+  ; ( "--slr"
+    , Arg.Unit (fun _ -> grammar_kind := Cpspg.AutomatonGen.SLR)
+    , "Construct a SLR(1) automaton" )
+  ; ( "--lr1"
+    , Arg.Unit (fun _ -> grammar_kind := Cpspg.AutomatonGen.LR1)
+    , "Construct a LR(1) automaton" )
+  ; ( "--lalr"
+    , Arg.Unit (fun _ -> grammar_kind := Cpspg.AutomatonGen.LALR)
+    , "Construct a LALR(1) automaton (default)" )
+    (* Codegen options *)
+  ; "--comment", Arg.Set codegen_comments, "Include comments in the generated code"
+  ; ( "--readable-ids"
+    , Arg.Set codegen_readable_ids
+    , "Make identifiers in generated code longer" )
   ]
+  |> Arg.align
 ;;
 
-let _ =
-  Arg.parse speclist (fun _ -> failwith "Unexpected argument") usage;
-  let lexbuf = Lexing.from_channel stdin
+let _ = Arg.parse specs (fun x -> source_name := Some x) usage
+
+let print_conflicts term conflicts =
+  let iter (id, sym, moves) =
+    let sym =
+      match sym with
+      | Cpspg.Automaton.Follow.Term t -> (term t).Cpspg.Automaton.ti_name
+      | Cpspg.Automaton.Follow.End -> "$"
+    in
+    Format.eprintf "Conflict in state %d on symbol %s:\n" id sym;
+    let f = function
+      | Cpspg.Automaton.Shift -> Format.eprintf "  - shift\n"
+      | Cpspg.Automaton.Reduce (i, j) ->
+        Format.eprintf "  - reduce item %d in group %d\n" i j
+    in
+    List.iter f moves;
+    Format.eprintf "%!"
+  in
+  List.iter iter conflicts
+;;
+
+let output_automaton (module A : Cpspg.AutomatonGen.Automaton) =
+  match !output_automaton with
+  | None -> ()
+  | Some "-" ->
+    let module G = Cpspg.Graphviz.Make (A) in
+    G.fmt_automaton Format.std_formatter A.automaton
+  | Some x ->
+    let module G = Cpspg.Graphviz.Make (A) in
+    G.fmt_automaton (Format.formatter_of_out_channel (open_out x)) A.automaton
+;;
+
+let output_code (module A : Cpspg.AutomatonGen.Automaton) =
+  let f =
+    match !output_name with
+    | None | Some "-" -> Format.std_formatter
+    | Some x -> Format.formatter_of_out_channel (open_out x)
+  in
+  let module Settings = struct
+    let comments = !codegen_comments
+    let readable_ids = !codegen_readable_ids
+    let log = Format.eprintf
+  end
+  in
+  let module Input = struct
+    include A
+
+    let f = f
+  end
+  in
+  let module C = Cpspg.CodeGen.Run (Settings) (Input) in
+  ()
+;;
+
+let main () =
+  let lexbuf =
+    match !source_name with
+    | None | Some "-" -> Lexing.from_channel stdin
+    | Some x -> Lexing.from_channel (open_in x)
   and lexfun lexbuf =
     match Cpspg.Lexer.token lexbuf with
     | Cpspg.Parser.EOF -> None
@@ -41,53 +102,23 @@ let _ =
   let grammar = Cpspg.Parser.grammar lexbuf lexfun in
   let conflicts = ref [] in
   (* Generate automaton *)
-  let module A =
-    Cpspg.AutomatonGen.Run
-      (struct
-        let kind = !grammar_kind
-        let on_conflict id sym moves = conflicts := (id, sym, moves) :: !conflicts
-        let log = Format.eprintf
-      end)
-      (struct
-        let grammar = grammar
-      end)
+  let module Settings = struct
+    let kind = !grammar_kind
+    let on_conflict id sym moves = conflicts := (id, sym, moves) :: !conflicts
+    let log = Format.eprintf
+  end
   in
-  (* Print conflicts *)
-  let _ =
-    let iter (id, sym, moves) =
-      let sym =
-        match sym with
-        | Cpspg.Automaton.Follow.Term t -> (A.term t).ti_name
-        | Cpspg.Automaton.Follow.End -> "$"
-      in
-      Format.eprintf "Conflict in state %d on symbol %s:\n" id sym;
-      let f = function
-        | Cpspg.Automaton.Shift -> Format.eprintf "  - shift\n"
-        | Cpspg.Automaton.Reduce (i, j) ->
-          Format.eprintf "  - reduce item %d in group %d\n" i j
-      in
-      List.iter f moves;
-      Format.eprintf "%!"
-    in
-    List.iter iter !conflicts
+  let module Input = struct
+    let grammar = grammar
+  end
   in
-  match !mode with
-  | Code ->
-    let module C =
-      Cpspg.CodeGen.Run
-        (struct
-          let comments = !gen_comments
-          let readable_ids = !gen_readable_ids
-          let log = Format.eprintf
-        end)
-        (struct
-          include A
+  let module A = Cpspg.AutomatonGen.Run (Settings) (Input) in
+  print_conflicts A.term !conflicts;
+  output_automaton (module A);
+  output_code (module A)
+;;
 
-          let f = Format.std_formatter
-        end)
-    in
-    ()
-  | Automaton ->
-    let module G = Cpspg.Graphviz.Make (A) in
-    G.fmt_automaton Format.std_formatter A.automaton
+let _ =
+  main ();
+  exit 0
 ;;

@@ -12,7 +12,7 @@ module type Input = sig
   val term : Automaton.Terminal.t -> Automaton.term_info
   val nterm : Automaton.Nonterminal.t -> Automaton.nterm_info
   val group : Automaton.Nonterminal.t -> Automaton.group
-  val symbols: Automaton.symbol list
+  val symbols : Automaton.symbol list
   val automaton : Automaton.t
 end
 
@@ -85,9 +85,9 @@ module Run (S : Settings) (I : Input) = struct
     | false, _ -> Format.fprintf I.f "c%d" i
   ;;
 
-  let gen_action_id i =
+  let gen_action_id a i =
     if S.readable_ids
-    then Format.fprintf I.f "action_%d" i
+    then Format.fprintf I.f "a%d_%s" i (symbol_name (NTerm a.sa_symbol))
     else Format.fprintf I.f "a%d" i
   ;;
 
@@ -140,7 +140,8 @@ module Run (S : Settings) (I : Input) = struct
       assert (List.length group.g_prefix = 1);
       gen_arg_ids group.g_prefix
     | { i_action; _ } ->
-      Format.fprintf I.f "Actions.%t" (fun _ -> gen_action_id i_action);
+      let action = IntMap.find i_action I.automaton.a_actions in
+      Format.fprintf I.f " Actions.%t" (fun _ -> gen_action_id action i_action);
       gen_arg_ids group.g_prefix;
       Format.fprintf I.f " ()"
   ;;
@@ -163,7 +164,7 @@ module Run (S : Settings) (I : Input) = struct
       let group = List.nth (state.s_kernel @ state.s_closure) i in
       let item = List.nth group.g_items j in
       Format.fprintf I.f "    %t->\n" (fun _ -> gen_token_pats lookahead);
-      Format.fprintf I.f "      let x = %t in\n" (fun _ -> gen_action_call group item);
+      Format.fprintf I.f "      let x =%t in\n" (fun _ -> gen_action_call group item);
       Format.fprintf I.f "      %t x\n" (fun _ -> gen_cont_id group i)
   ;;
 
@@ -214,7 +215,7 @@ module Run (S : Settings) (I : Input) = struct
       | Some a -> Format.fprintf I.f " %s" a
       | None -> Format.fprintf I.f " _"
     in
-    gen_action_id id;
+    gen_action_id action id;
     List.iter2 f (List.rev item.i_suffix) (List.rev action.sa_args);
     Format.fprintf I.f " () = %s" (String.trim action.sa_code)
   ;;
@@ -231,14 +232,14 @@ module Run (S : Settings) (I : Input) = struct
     in
     Format.fprintf I.f "type token =\n";
     List.iter gen_variant symbols;
-    Format.fprintf I.f ";;\n"
+    Format.fprintf I.f "\n"
   ;;
 
   let gen_entry (symbol, id) =
     Format.fprintf I.f "let %s lexbuf lexfun =\n" (symbol_name (NTerm symbol));
     Format.fprintf I.f "  States.setup lexfun lexbuf;\n";
     Format.fprintf I.f "  States.%t (fun x -> x)\n" (fun _ -> gen_state_id id);
-    Format.fprintf I.f ";;\n\n"
+    Format.fprintf I.f ";;\n"
   ;;
 
   let _ =
@@ -255,12 +256,8 @@ module Run (S : Settings) (I : Input) = struct
     Format.fprintf I.f "end\n\n";
     Format.fprintf I.f "module States = struct\n%s" lib;
     IntMap.bindings I.automaton.a_states
-    |> gen_letrec ~post:"\n" ~post':"\n    ;;\n" gen_state;
+    |> gen_letrec ~post:"\n" ~post':"  ;;\n" gen_state;
     Format.fprintf I.f "end\n\n";
     List.iter gen_entry I.automaton.a_starting
   ;;
-
-  (* module F = Dot (I)
-
-  let _ = F.fmt_automaton I.f I.automaton *)
 end

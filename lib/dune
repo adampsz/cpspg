@@ -2,3 +2,16 @@
  (name cpspg))
 
 (ocamllex Lexer)
+
+(rule
+ (deps Parser.cpspg)
+ (target Parser.cpspg.ml)
+ (action
+  (chdir
+   %{workspace_root}
+   (run cpspg --comment --readable-ids -o %{target} %{deps}))))
+
+(rule
+ (alias bootstrap)
+ (action
+  (diff Parser.ml Parser.cpspg.ml)))
