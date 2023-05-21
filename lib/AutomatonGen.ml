@@ -7,7 +7,6 @@ type grammar_type =
 module type Settings = sig
   val kind : grammar_type
   val on_conflict : int -> Automaton.Terminal.t -> Automaton.action list -> unit
-  val log : ('a, Format.formatter, unit) format -> 'a
 end
 
 module type Input = sig

@@ -4,7 +4,7 @@
 (ocamllex Lexer)
 
 (rule
- (deps Parser.cpspg)
+ (deps Parser.mly)
  (target Parser.cpspg.ml)
  (action
   (chdir

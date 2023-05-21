@@ -1,10 +1,11 @@
-{
+%{
     open Grammar
-}
+%}
 
 %start grammar
 %token<string> ID TID TYPE CODE
-%token DTOKEN DSTART DSEP COLON SEMI BAR EQ
+%token DTOKEN DTYPE DSTART DLEFT DRIGHT DNONASSOC DSEP
+%token COLON SEMI BAR EQ
 %token EOF
 
 %%

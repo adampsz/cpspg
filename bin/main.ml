@@ -3,8 +3,15 @@ let source_name = ref None
 let output_name = ref None
 let output_automaton = ref None
 let grammar_kind = ref Cpspg.AutomatonGen.LALR
-let codegen_comments = ref false
+let codegen_comment = ref false
 let codegen_readable_ids = ref false
+let codegen_line_directives = ref true
+
+let codegen_readable () =
+  codegen_readable_ids := true;
+  codegen_comment := true;
+  codegen_line_directives := false
+;;
 
 let specs =
   [ ( "-o"
@@ -27,10 +34,17 @@ let specs =
     , Arg.Unit (fun _ -> grammar_kind := Cpspg.AutomatonGen.LALR)
     , "Construct a LALR(1) automaton (default)" )
     (* Codegen options *)
-  ; "--comment", Arg.Set codegen_comments, "Include comments in the generated code"
+  ; ( "--readable"
+    , Arg.Unit codegen_readable
+    , "Make generated code more readable (implies --comment, --readable-ids and \
+       --no-line-directives)" )
+  ; "--comment", Arg.Set codegen_comment, "Include comments in the generated code"
   ; ( "--readable-ids"
     , Arg.Set codegen_readable_ids
     , "Make identifiers in generated code longer" )
+  ; ( "--no-line-directives"
+    , Arg.Unit (fun _ -> codegen_line_directives := false)
+    , "Do not include line directives in generated code" )
   ]
   |> Arg.align
 ;;
@@ -70,9 +84,9 @@ let output_code (module A : Cpspg.AutomatonGen.Automaton) =
     | Some x -> Format.formatter_of_out_channel (open_out x)
   in
   let module Settings = struct
-    let comments = !codegen_comments
+    let comments = !codegen_comment
     let readable_ids = !codegen_readable_ids
-    let log = Format.eprintf
+    let line_directives = !codegen_line_directives
   end
   in
   let module Input = struct
@@ -91,13 +105,12 @@ let main () =
     | None | Some "-" -> Lexing.from_channel stdin
     | Some x -> Lexing.from_channel (open_in x)
   in
-  let grammar = Cpspg.Parser.grammar lexbuf Cpspg.Lexer.token in
+  let grammar = Cpspg.Parser.grammar lexbuf Cpspg.Lexer.main in
   let conflicts = ref [] in
   (* Generate automaton *)
   let module Settings = struct
     let kind = !grammar_kind
     let on_conflict id sym actions = conflicts := (id, sym, actions) :: !conflicts
-    let log = Format.eprintf
   end
   in
   let module Input = struct

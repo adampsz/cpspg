@@ -8,7 +8,11 @@ type token =
   | TYPE of string
   | CODE of string
   | DTOKEN
+  | DTYPE
   | DSTART
+  | DLEFT
+  | DRIGHT
+  | DNONASSOC
   | DSEP
   | COLON
   | SEMI

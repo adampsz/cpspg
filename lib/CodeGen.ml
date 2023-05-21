@@ -4,7 +4,7 @@ module SymbolMap = Map.Make (Automaton.Symbol)
 module type Settings = sig
   val comments : bool
   val readable_ids : bool
-  val log : ('a, Format.formatter, unit) format -> 'a
+  val line_directives : bool
 end
 
 module type Input = sig

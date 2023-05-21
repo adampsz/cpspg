@@ -1,53 +1,108 @@
 {
   open Parser
+  open Lexing
+
+  let update_loc lexbuf file line  =
+    let pos = lexbuf.lex_curr_p in
+    let file = Option.value ~default:pos.pos_fname file in
+    lexbuf.lex_curr_p <- { pos with
+      pos_fname = file;
+      pos_lnum = line;
+      pos_bol = pos.pos_cnum;
+    }
+
+  let buffered f lexbuf =
+    let pos = lexbuf.lex_start_p in
+    let buf = Buffer.create 64 in
+    f buf lexbuf;
+    lexbuf.lex_start_p <- pos;
+    Buffer.contents buf
 }
 
-let space =  [' ' '\n' '\r' '\t' ]
-let id_start = ['a'-'z' '_']
-let tid_start = ['A'-'Z']
-let id_cont = id_start | tid_start | ['0'-'9' ''']
+let newline = ('\013'* '\010')
+let blank = [' ' '\009' '\012']
 
-rule token = parse
-  | '\n' { Lexing.new_line lexbuf; token lexbuf }
-  | space { token lexbuf }
-  | "(*" { comment lexbuf; token lexbuf }
+let lowercase = ['a'-'z' '\223'-'\246' '\248'-'\255' '_']
+let uppercase = ['A'-'Z' '\192'-'\214' '\216'-'\222']
+let identchar = ['A'-'Z' 'a'-'z' '_' '\192'-'\214' '\216'-'\246' '\248'-'\255' '\'' '0'-'9']
 
-  | "%token" { DTOKEN }
-  | "%start" { DSTART }
-  | "%%" { DSEP }
+rule main = parse
+  | newline { new_line lexbuf; main lexbuf }
+  | blank   { main lexbuf }
+
+  | "#" blank* (['0'-'9']+ as num) blank*
+      ('"' ([^ '\010' '\013' '"']* as name) '"')?
+      [^ '\010' '\013']* newline
+    { update_loc lexbuf name (int_of_string num); main lexbuf }
+
+  | "(*" { comment 0 lexbuf; main lexbuf }
+
+  | "%token"    { DTOKEN}
+  | "%term"     { DTOKEN }
+  | "%type"     { DTYPE }
+  | "%start"    { DSTART }
+  | "%left"     { DLEFT }
+  | "%right"    { DRIGHT }
+  | "%nonassoc" { DNONASSOC }
+  | "%binary"   { DNONASSOC }
+  | "%%"        { DSEP }
+
+  | "%\\" { DSEP }
+  | "%<"  { DLEFT }
+  | "%>"  { DRIGHT }
+  | "%0"  { DTOKEN }
+  | "%2"  { DNONASSOC }
+
   | ":" { COLON }
   | ";" { SEMI }
   | "|" { BAR }
   | "=" { EQ }
 
-  | id_start id_cont* as i { ID i }
-  | tid_start id_cont* as i { TID i }
+  | lowercase identchar* as i { ID i }
+  | uppercase identchar* as i { TID i }
 
-  | '<' {
-    let buf = Buffer.create 64 in
-    tp buf lexbuf;
-    TYPE (Buffer.contents buf)
-  }
-
-  | '{' {
-    let buf = Buffer.create 64 in
-    code buf lexbuf;
-    CODE (Buffer.contents buf)
-  }
+  | '<' { TYPE (buffered (tag 0) lexbuf) }
+  | "{" { CODE (buffered (code false 0) lexbuf) }
+  | "%{" { CODE (buffered (code true 0) lexbuf) }
 
   | eof { EOF }
 
-and tp buf = parse
-  | '<' { Buffer.add_char buf '<'; tp buf lexbuf; Buffer.add_char buf '>'; tp buf lexbuf }
-  | '>' {}
-  | _ as c { Buffer.add_char buf c; tp buf lexbuf }
+and tag depth buf = parse
+  | ['[' '('] as c { Buffer.add_char buf c; tag (depth + 1) buf lexbuf }
+  | [']' ')'] as c { Buffer.add_char buf c; tag (depth - 1) buf lexbuf }
 
-and code buf = parse
-  | '{' { Buffer.add_char buf '{'; code buf lexbuf; Buffer.add_char buf '}'; code buf lexbuf }
-  | '}' {}
-  | _ as c { Buffer.add_char buf c; code buf lexbuf }
+  | "->" as c { Buffer.add_string buf c; tag depth buf lexbuf }
+  | '>' as c  { if depth > 0 then (Buffer.add_char buf c; tag depth buf lexbuf) }
+  
+  | newline   { new_line lexbuf; tag depth buf lexbuf }
+  | eof       { failwith "unterminated type tag" }
+  | _ as c    { Buffer.add_char buf c; tag depth buf lexbuf }
 
-and comment = parse
-  | "(*" { comment lexbuf; comment lexbuf }
-  | "*)" {}
-  | _    { comment lexbuf }
+and code head depth buf = parse
+  | ['[' '(' '{'] as c { Buffer.add_char buf c; code head (depth + 1) buf lexbuf }
+  | [']' ')'] as c { Buffer.add_char buf c; code head (depth - 1) buf lexbuf }
+
+  | '}' as c  { if depth > 0 || head = true then (Buffer.add_char buf c; code head (depth - 1) buf lexbuf) }
+  | "%}" as c { if depth > 0 || head = false then (Buffer.add_string buf c; code head (depth - 1) buf lexbuf) }
+
+  | '"' as c { Buffer.add_char buf c; string buf lexbuf; Buffer.add_char buf c; code head depth buf lexbuf }
+
+  | newline { new_line lexbuf; code head depth buf lexbuf }
+  | eof     { failwith "unterminated code" }
+  | _ as c  { Buffer.add_char buf c; code head depth buf lexbuf }
+
+and string buf = parse
+  | "\\\\" as c { Buffer.add_string buf c; string buf lexbuf }
+  | "\\\"" as c { Buffer.add_string buf c; string buf lexbuf }
+  | _ as c      { Buffer.add_char buf c; string buf lexbuf }
+  | '"' { }
+
+and comment depth = parse
+  | "(*" { comment (depth + 1) lexbuf }
+  | "*)" { if depth > 0 then comment (depth - 1) lexbuf }
+
+  | "\"" { string (Buffer.create 0) lexbuf; comment depth lexbuf }
+
+  | newline { new_line lexbuf; comment depth lexbuf }
+  | eof     { failwith "unterminated comment" }
+  | _       { comment depth lexbuf }
