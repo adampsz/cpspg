@@ -1,6 +1,15 @@
+type 'a node =
+  { range : Lexing.position * Lexing.position
+  ; data : 'a
+  }
+
 type decl =
   | DeclToken of string option * string list
-  | DeclStart of string option * string list
+  | DeclStart of string list
+  | DeclType of string * string list
+  | DeclLeft of string list
+  | DeclRight of string list
+  | DeclNonassoc of string list
 
 type actual =
   | NTerm of string

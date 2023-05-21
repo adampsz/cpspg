@@ -26,8 +26,11 @@ decls:
 decl:
     | DTOKEN tp=TYPE tids { DeclToken (Some tp, tids) }
     | DTOKEN tids         { DeclToken (None, tids) }
-    | DSTART tp=TYPE ids  { DeclStart (Some tp, ids) }
-    | DSTART ids          { DeclStart (None, ids) }
+    | DSTART ids          { DeclStart ids }
+    | DTYPE tp=TYPE ids   { DeclType (tp, ids) }           
+    | DLEFT ids           { DeclLeft ids }
+    | DRIGHT ids          { DeclRight ids }
+    | DNONASSOC ids       { DeclNonassoc ids }
 ;
 
 tids:

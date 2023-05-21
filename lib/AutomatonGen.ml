@@ -164,8 +164,8 @@ module Run (S : Settings) (I : Input) : Automaton = struct
         Hashtbl.replace term name (Hashtbl.length term |> Terminal.of_int, info)
       in
       let iter_decl = function
-        | Grammar.DeclStart _ -> ()
         | Grammar.DeclToken (ty, ids) -> List.iter (iter_token ty) ids
+        | _ -> ()
       in
       List.iter iter_decl I.grammar.decls
     ;;
@@ -182,13 +182,13 @@ module Run (S : Settings) (I : Input) : Automaton = struct
 
     (* Mark starting symbols *)
     let _ =
-      let iter_start _ name =
+      let iter_start name =
         let id, info = Hashtbl.find nterm name in
         Hashtbl.replace nterm name (id, { info with ni_starting = true })
       in
       let iter_decl = function
-        | Grammar.DeclStart (ty, ids) -> List.iter (iter_start ty) ids
-        | Grammar.DeclToken _ -> ()
+        | Grammar.DeclStart ids -> List.iter iter_start ids
+        | _ -> ()
       in
       List.iter iter_decl I.grammar.decls
     ;;
