@@ -2,6 +2,9 @@
   open Parser
   open Lexing
 
+  let add_c = Buffer.add_char
+  let add_s = Buffer.add_string
+
   let update_loc lexbuf file line  =
     let pos = lexbuf.lex_curr_p in
     let file = Option.value ~default:pos.pos_fname file in
@@ -11,9 +14,10 @@
       pos_bol = pos.pos_cnum;
     }
 
-  let buffered f lexbuf =
+  let buffered pre f lexbuf =
     let pos = lexbuf.lex_start_p in
     let buf = Buffer.create 64 in
+    add_s buf pre;
     f buf lexbuf;
     lexbuf.lex_start_p <- pos;
     Buffer.contents buf
@@ -61,43 +65,54 @@ rule main = parse
   | lowercase identchar* as i { ID i }
   | uppercase identchar* as i { TID i }
 
-  | '<' { TYPE (buffered (tag 0) lexbuf) }
-  | "{" { CODE (buffered (code false 0) lexbuf) }
-  | "%{" { CODE (buffered (code true 0) lexbuf) }
+  | '<'  { TYPE (buffered " "  (tag 0) lexbuf) }
+  | "{"  { CODE (buffered " "  (code false 0) lexbuf) }
+  | "%{" { CODE (buffered "  " (code true 0) lexbuf) }
 
   | eof { EOF }
 
 and tag depth buf = parse
-  | ['[' '('] as c { Buffer.add_char buf c; tag (depth + 1) buf lexbuf }
-  | [']' ')'] as c { Buffer.add_char buf c; tag (depth - 1) buf lexbuf }
+  | ['[' '('] as c { add_c buf c; tag (depth + 1) buf lexbuf }
+  | [']' ')'] as c { add_c buf c; tag (depth - 1) buf lexbuf }
 
-  | "->" as c { Buffer.add_string buf c; tag depth buf lexbuf }
-  | '>' as c  { if depth > 0 then (Buffer.add_char buf c; tag depth buf lexbuf) }
+  | "->" as c { add_s buf c; tag depth buf lexbuf }
+
+  | '>' as c  {
+    if depth > 0
+    then (add_c buf c; tag depth buf lexbuf)
+    else add_c buf ' ' }
   
-  | newline as c { new_line lexbuf; Buffer.add_string buf c; tag depth buf lexbuf }
+  | newline as c { new_line lexbuf; add_s buf c; tag depth buf lexbuf }
   | eof          { failwith "unterminated type tag" }
-  | _ as c       { Buffer.add_char buf c; tag depth buf lexbuf }
+  | _ as c       { add_c buf c; tag depth buf lexbuf }
 
 and code head depth buf = parse
-  | ['[' '(' '{'] as c { Buffer.add_char buf c; code head (depth + 1) buf lexbuf }
-  | [']' ')'] as c { Buffer.add_char buf c; code head (depth - 1) buf lexbuf }
+  | ['[' '(' '{'] as c { add_c buf c; code head (depth + 1) buf lexbuf }
+  | [']' ')'] as c { add_c buf c; code head (depth - 1) buf lexbuf }
 
-  | '}' as c  { if depth > 0 || head = true then (Buffer.add_char buf c; code head (depth - 1) buf lexbuf) }
-  | "%}" as c { if depth > 0 || head = false then (Buffer.add_string buf c; code head (depth - 1) buf lexbuf) }
+  | '}' as c
+    { if depth > 0 || head = true
+      then (add_c buf c; code head (depth - 1) buf lexbuf)
+      else add_c buf ' ' }
+
+  | "%}" as c
+    { if depth > 0 || head = false
+      then (add_s buf c; code head (depth - 1) buf lexbuf)
+      else add_s buf "  " }
 
   (* TODO: Proper location handling *)
-  | "$loc" { Buffer.add_string buf "(List.hd _loc)"; code head depth buf lexbuf }
+  | "$loc" { add_s buf "(List.hd _loc)"; code head depth buf lexbuf }
 
-  | '"' as c { Buffer.add_char buf c; string buf lexbuf; Buffer.add_char buf c; code head depth buf lexbuf }
+  | '"' as c { add_c buf c; string buf lexbuf; add_c buf c; code head depth buf lexbuf }
 
-  | newline as c { new_line lexbuf; Buffer.add_string buf c; code head depth buf lexbuf }
+  | newline as c { new_line lexbuf; add_s buf c; code head depth buf lexbuf }
   | eof          { failwith "unterminated code" }
-  | _ as c       { Buffer.add_char buf c; code head depth buf lexbuf }
+  | _ as c       { add_c buf c; code head depth buf lexbuf }
 
 and string buf = parse
-  | "\\\\" as c { Buffer.add_string buf c; string buf lexbuf }
-  | "\\\"" as c { Buffer.add_string buf c; string buf lexbuf }
-  | _ as c      { Buffer.add_char buf c; string buf lexbuf }
+  | "\\\\" as c { add_s buf c; string buf lexbuf }
+  | "\\\"" as c { add_s buf c; string buf lexbuf }
+  | _ as c      { add_c buf c; string buf lexbuf }
   | '"' { }
 
 and comment depth = parse

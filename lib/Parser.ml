@@ -5,10 +5,10 @@ open Grammar
 let mknode ~loc data = { loc; data }
 
 type token =
-  | ID of string
-  | TID of string
-  | TYPE of string
-  | CODE of string
+  | ID of (string)
+  | TID of (string)
+  | TYPE of (string)
+  | CODE of (string)
   | DTOKEN
   | DTYPE
   | DSTART

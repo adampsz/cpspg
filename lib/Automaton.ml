@@ -76,6 +76,7 @@ type semantic_action =
   ; sa_index : int
   ; sa_args : string option list
   ; sa_code : string
+  ; sa_def_loc : Lexing.position
   }
 
 type action =
@@ -98,11 +99,14 @@ type state =
 type term_info =
   { ti_name : string
   ; ti_ty : string option
+  ; ti_def_loc : Lexing.position
+  ; ti_ty_loc : Lexing.position option
   }
 
 type nterm_info =
   { ni_name : string
   ; ni_starting : bool
+  ; ni_def_loc : Lexing.position
   }
 
 type t =

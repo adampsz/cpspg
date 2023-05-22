@@ -68,6 +68,15 @@ struct
     loop 0 xs
   ;;
 
+  let write_line_directive f loc =
+    Format.fprintf
+      f
+      "\n# %d \"%s\"\n%s"
+      loc.Lexing.pos_lnum
+      loc.Lexing.pos_fname
+      (String.make (loc.pos_cnum - loc.pos_bol) ' ')
+  ;;
+
   let write_arg_id f symbol idx =
     if S.readable_ids
     then Format.fprintf f "a%d_%s" idx (symbol_name symbol)
@@ -192,8 +201,16 @@ struct
   ;;
 
   let write_term_cons f = function
-    | { ti_name; ti_ty = Some ty } -> Format.fprintf f "  | %s of %s\n" ti_name ty
-    | { ti_name; ti_ty = None } -> Format.fprintf f "  | %s\n" ti_name
+    | { ti_name; ti_ty = Some ty; ti_def_loc; ti_ty_loc = Some ti_ty_loc }
+      when S.line_directives ->
+      Format.fprintf f "  | ";
+      write_line_directive f ti_def_loc;
+      Format.fprintf f "%s of (" ti_name;
+      write_line_directive f ti_ty_loc;
+      Format.fprintf f "%s)\n" ty
+    | { ti_name; ti_ty = Some ty; _ } ->
+      Format.fprintf f "  | %s of (%s)\n" ti_name (String.trim ty)
+    | { ti_name; ti_ty = None; _ } -> Format.fprintf f "  | %s\n" ti_name
   ;;
 
   let write_term_type f symbols =
@@ -216,7 +233,11 @@ struct
     write_semantic_action_id f action id;
     Format.fprintf f " ~loc:_loc";
     List.iter2 iter (List.rev item.i_suffix) (List.rev action.sa_args);
-    Format.fprintf f " () = %s" (String.trim action.sa_code)
+    Format.fprintf f " () =";
+    if S.line_directives then write_line_directive f action.sa_def_loc;
+    if S.line_directives
+    then Format.fprintf f "%s" action.sa_code
+    else Format.fprintf f " %s" (String.trim action.sa_code)
   ;;
 
   let write_state_comment f state =

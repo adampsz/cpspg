@@ -70,10 +70,10 @@ let print_conflicts term conflicts =
 ;;
 
 let main () =
-  let input =
+  let input, input_name =
     match !source_name with
-    | None | Some "-" -> stdin
-    | Some x -> open_in x
+    | None | Some "-" -> stdin, "-"
+    | Some x -> open_in x, x
   and output =
     match !output_name with
     | None | Some "-" -> stdout
@@ -92,7 +92,9 @@ let main () =
   in
   (* First pass: parse grammar definition *)
   let module Ast = struct
-    let ast = Cpspg.Parser.grammar Cpspg.Lexer.main (Lexing.from_channel input)
+    let lexbuf = Lexing.from_channel input
+    let _ = Lexing.set_filename lexbuf input_name
+    let ast = Cpspg.Parser.grammar Cpspg.Lexer.main lexbuf
   end
   in
   (* Second pass: create context-free grammar *)

@@ -10,7 +10,7 @@
  (action
   (chdir
    %{workspace_root}
-   (run cpspg --comment --readable-ids -o %{target} %{deps}))))
+   (run cpspg --readable -o %{target} %{deps}))))
 
 (rule
  (alias bootstrap)

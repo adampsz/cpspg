@@ -12,14 +12,15 @@ module Run (S : Types.Settings) (A : Types.Ast) : Types.Grammar = struct
   (* Define terminals *)
   let _ =
     let iter_token ty name =
-      let name = name.Grammar.data in
-      let info = { ti_name = name; ti_ty = ty } in
+      let name = name.Grammar.data
+      and ty = Option.map (fun t -> t.Grammar.data) ty
+      and loc = fst name.Grammar.loc
+      and ty_loc = Option.map (fun t -> fst t.Grammar.loc) ty in
+      let info = { ti_name = name; ti_ty = ty; ti_def_loc = loc; ti_ty_loc = ty_loc } in
       Hashtbl.replace term name (Hashtbl.length term |> Terminal.of_int, info)
     in
     let iter_decl = function
-      | Grammar.DeclToken (ty, ids) ->
-        let ty = Option.map (fun x -> x.Grammar.data) ty in
-        List.iter (iter_token ty) ids
+      | Grammar.DeclToken (ty, ids) -> List.iter (iter_token ty) ids
       | _ -> ()
     in
     List.iter iter_decl A.ast.decls
@@ -28,8 +29,9 @@ module Run (S : Types.Settings) (A : Types.Ast) : Types.Grammar = struct
   (* Define non-terminals *)
   let _ =
     let iter_rule rule =
-      let name = rule.Grammar.id.data in
-      let info = { ni_name = name; ni_starting = false } in
+      let name = rule.Grammar.id.data
+      and loc = fst rule.Grammar.id.loc in
+      let info = { ni_name = name; ni_starting = false; ni_def_loc = loc } in
       Hashtbl.replace nterm name (Hashtbl.length nterm |> Nonterminal.of_int, info)
     in
     List.iter iter_rule A.ast.rules
@@ -68,13 +70,14 @@ module Run (S : Types.Settings) (A : Types.Ast) : Types.Grammar = struct
       | { Grammar.id = Some id; _ } -> Some id.data
       | { Grammar.id = None; _ } -> None
     in
-    let sa_code = p.Grammar.action.data in
-    let sa_args = List.map id p.Grammar.prod in
-    { sa_symbol = symbol; sa_index = index; sa_args; sa_code }
+    let sa_code = p.Grammar.action.data
+    and sa_def_loc = fst p.Grammar.action.loc
+    and sa_args = List.map id p.Grammar.prod in
+    { sa_symbol = symbol; sa_index = index; sa_args; sa_code; sa_def_loc }
   ;;
 
   (** Create semantic action and item from given production `prod`, then register
-     created action in `actions` and add item to `items`. *)
+      created action in `actions` and add item to `items`. *)
   let fold_prod symbol (actions, items, i) prod =
     let action, id = tr_action prod symbol i, IntMap.cardinal actions + 1 in
     let item = { i_suffix = tr_symbols prod; i_action = id } in
@@ -84,7 +87,7 @@ module Run (S : Types.Settings) (A : Types.Ast) : Types.Grammar = struct
   let compare_prod_length a b = List.length b.Grammar.prod - List.length a.Grammar.prod
 
   (** Create item group from given rule `rule`, while registering all its actions in `actions`,
-     then add group to `groups`. *)
+      then add group to `groups`. *)
   let fold_rule (actions, groups) rule =
     let prods = List.sort compare_prod_length rule.Grammar.prods in
     let g_symbol = fst (Hashtbl.find nterm rule.Grammar.id.data)
@@ -98,9 +101,9 @@ module Run (S : Types.Settings) (A : Types.Ast) : Types.Grammar = struct
   ;;
 
   (** `actions` is a map from action id to semantic action, for all semantic actions
-          defined in the grammar.
-        `groups` is a map from nonterminal id to a item group in a form { X → ε · β1, …, βn },
-          where X → β1, …, X → βn are producions from grammar *)
+        defined in the grammar.
+      `groups` is a map from nonterminal id to a item group in a form { X → ε · β1, …, βn },
+        where X → β1, …, X → βn are producions from grammar *)
   let actions, groups =
     List.fold_left fold_rule (IntMap.empty, NTermMap.empty) A.ast.rules
   ;;
