@@ -3,3 +3,9 @@
  (name main))
 
 (ocamllex Lexer)
+
+(rule
+ (deps Parser.mly)
+ (target Parser.ml)
+ (action
+  (run cpspg -o %{target} %{deps})))
