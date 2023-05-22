@@ -41,9 +41,12 @@ struct
   open Automaton
   module D = Graphviz.Make (G)
 
+  let term_name t = (G.term t).ti_name.data
+  let nterm_name n = (G.nterm n).ni_name.data
+
   let symbol_name = function
-    | Term t -> (G.term t).ti_name
-    | NTerm n -> (G.nterm n).ni_name
+    | Term t -> term_name t
+    | NTerm n -> nterm_name n
   ;;
 
   let symbol_has_value = function
@@ -68,13 +71,19 @@ struct
     loop 0 xs
   ;;
 
-  let write_line_directive f loc =
+  let write_line_directive f (loc, _) =
     Format.fprintf
       f
       "\n# %d \"%s\"\n%s"
       loc.Lexing.pos_lnum
       loc.Lexing.pos_fname
       (String.make (loc.pos_cnum - loc.pos_bol) ' ')
+  ;;
+
+  let write_string f { loc; data } =
+    if S.line_directives
+    then Format.fprintf f "%t%s" (fun f -> write_line_directive f loc) data
+    else Format.fprintf f "%s" (String.trim data)
   ;;
 
   let write_arg_id f symbol idx =
@@ -86,14 +95,13 @@ struct
   let write_cont_id f group idx =
     match S.readable_ids, group.g_starting with
     | false, _ -> Format.fprintf f "c%d" idx
-    | true, false -> Format.fprintf f "c%d_%s" idx (symbol_name (NTerm group.g_symbol))
-    | true, true ->
-      Format.fprintf f "c%d_%s_starting" idx (symbol_name (NTerm group.g_symbol))
+    | true, false -> Format.fprintf f "c%d_%s" idx (nterm_name group.g_symbol)
+    | true, true -> Format.fprintf f "c%d_%s_starting" idx (nterm_name group.g_symbol)
   ;;
 
   let write_semantic_action_id f action idx =
     if S.readable_ids
-    then Format.fprintf f "a%d_%s" idx (symbol_name (NTerm action.sa_symbol))
+    then Format.fprintf f "a%d_%s" idx (nterm_name action.sa_symbol)
     else Format.fprintf f "a%d" idx
   ;;
 
@@ -115,8 +123,8 @@ struct
 
   let write_term_pattern f bind t =
     if symbol_has_value (Term t)
-    then Format.fprintf f "%s %s" (symbol_name (Term t)) (if bind then "x" else "_")
-    else Format.fprintf f "%s" (symbol_name (Term t))
+    then Format.fprintf f "%s %s" (term_name t) (if bind then "x" else "_")
+    else Format.fprintf f "%s" (term_name t)
   ;;
 
   let write_term_patterns f ts =
@@ -201,16 +209,14 @@ struct
   ;;
 
   let write_term_cons f = function
-    | { ti_name; ti_ty = Some ty; ti_def_loc; ti_ty_loc = Some ti_ty_loc }
-      when S.line_directives ->
-      Format.fprintf f "  | ";
-      write_line_directive f ti_def_loc;
-      Format.fprintf f "%s of (" ti_name;
-      write_line_directive f ti_ty_loc;
-      Format.fprintf f "%s)\n" ty
-    | { ti_name; ti_ty = Some ty; _ } ->
-      Format.fprintf f "  | %s of (%s)\n" ti_name (String.trim ty)
-    | { ti_name; ti_ty = None; _ } -> Format.fprintf f "  | %s\n" ti_name
+    | { ti_name; ti_ty = None } ->
+      Format.fprintf f "  | %t\n" (fun f -> write_string f ti_name)
+    | { ti_name; ti_ty = Some ty } ->
+      Format.fprintf
+        f
+        "  | %t of (%t)\n"
+        (fun f -> write_string f ti_name)
+        (fun f -> write_string f ty)
   ;;
 
   let write_term_type f symbols =
@@ -233,11 +239,7 @@ struct
     write_semantic_action_id f action id;
     Format.fprintf f " ~loc:_loc";
     List.iter2 iter (List.rev item.i_suffix) (List.rev action.sa_args);
-    Format.fprintf f " () =";
-    if S.line_directives then write_line_directive f action.sa_def_loc;
-    if S.line_directives
-    then Format.fprintf f "%s" action.sa_code
-    else Format.fprintf f " %s" (String.trim action.sa_code)
+    Format.fprintf f " () = %t" (fun f -> write_string f action.sa_code)
   ;;
 
   let write_state_comment f state =
@@ -286,7 +288,7 @@ struct
       \  States.setup lexfun lexbuf;\n\
       \  States.%t ~loc:[] (fun x -> x)\n\
        ;;\n"
-      (symbol_name (NTerm symbol))
+      (nterm_name symbol)
       (fun f -> write_state_id f id)
   ;;
 
@@ -297,18 +299,17 @@ struct
       if S.comments then write_state_comment f s;
       Format.fprintf f "  %s %t%s" pre (fun f -> write_state f id s) post
     and write_entry f (nt, s) = write_entry f nt s
-    and state_letrec = letrec ~post:"\n" ~post':"  ;;\n"
-    and header = indent A.automaton.a_header "" in
+    and state_letrec = letrec ~post:"\n" ~post':"  ;;\n" in
     Format.fprintf
       f
       "[@@@@@@warning \"-unused-rec-flag\"]\n\n\
-       %s\n\n\
+       %t\n\n\
        %tmodule Actions = struct\n\
        %tend\n\n\
        module States = struct\n\
        %s%tend\n\n\
        %t"
-      header
+      (fun f -> write_string f A.automaton.a_header)
       (fun f -> write_term_type f G.symbols)
       (fun f -> IntMap.iter (write_semantic_action f) A.automaton.a_actions)
       lib

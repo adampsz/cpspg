@@ -34,22 +34,14 @@ module Symbol = struct
   let compare : t -> t -> int = compare
 end
 
-module First = struct
-  type t =
-    | Term of Terminal.t
-    | Empty
-
-  let compare : t -> t -> int = compare
-
-  let to_terminal = function
-    | Term t -> Some t
-    | _ -> None
-  ;;
-end
-
 module SymbolMap = Map.Make (Symbol)
 module TermSet = Set.Make (Terminal)
 module IntMap = Map.Make (Int)
+
+type 'a node = 'a Grammar.node =
+  { loc : Lexing.position * Lexing.position
+  ; data : 'a
+  }
 
 type symbol = Symbol.t =
   | Term of Terminal.t
@@ -75,8 +67,7 @@ type semantic_action =
   { sa_symbol : Nonterminal.t
   ; sa_index : int
   ; sa_args : string option list
-  ; sa_code : string
-  ; sa_def_loc : Lexing.position
+  ; sa_code : string node
   }
 
 type action =
@@ -97,20 +88,17 @@ type state =
   }
 
 type term_info =
-  { ti_name : string
-  ; ti_ty : string option
-  ; ti_def_loc : Lexing.position
-  ; ti_ty_loc : Lexing.position option
+  { ti_name : string node
+  ; ti_ty : string node option
   }
 
 type nterm_info =
-  { ni_name : string
+  { ni_name : string node
   ; ni_starting : bool
-  ; ni_def_loc : Lexing.position
   }
 
 type t =
-  { a_header : string
+  { a_header : string node
   ; a_actions : semantic_action IntMap.t
   ; a_states : state IntMap.t
   ; a_starting : (Nonterminal.t * int) list

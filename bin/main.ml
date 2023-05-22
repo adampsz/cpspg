@@ -57,7 +57,7 @@ let _ = Arg.parse specs (fun x -> source_name := Some x) usage
 let print_conflicts term conflicts =
   let iter (id, sym, actions) =
     let sym = (term sym).Cpspg.Automaton.ti_name in
-    Format.eprintf "Conflict in state %d on symbol %s:\n" id sym;
+    Format.eprintf "Conflict in state %d on symbol %s:\n" id sym.data;
     let f = function
       | Cpspg.Automaton.Shift -> Format.eprintf "  - shift\n"
       | Cpspg.Automaton.Reduce (i, j) ->

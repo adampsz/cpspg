@@ -2,7 +2,7 @@
 
 open Grammar
 
-let mknode ~loc data = { loc; data }
+    let mknode ~loc data = { loc; data }
 
 type token =
   | ID of (string)

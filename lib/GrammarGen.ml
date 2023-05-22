@@ -5,19 +5,15 @@ module NTermMap = Map.Make (Automaton.Nonterminal)
 module Run (S : Types.Settings) (A : Types.Ast) : Types.Grammar = struct
   open Automaton
 
-  let header = A.ast.header.data
+  let header = A.ast.header
   let term = Hashtbl.create 16
   let nterm = Hashtbl.create 16
 
   (* Define terminals *)
   let _ =
     let iter_token ty name =
-      let name = name.Grammar.data
-      and ty = Option.map (fun t -> t.Grammar.data) ty
-      and loc = fst name.Grammar.loc
-      and ty_loc = Option.map (fun t -> fst t.Grammar.loc) ty in
-      let info = { ti_name = name; ti_ty = ty; ti_def_loc = loc; ti_ty_loc = ty_loc } in
-      Hashtbl.replace term name (Hashtbl.length term |> Terminal.of_int, info)
+      let info = { ti_name = name; ti_ty = ty } in
+      Hashtbl.replace term name.data (Hashtbl.length term |> Terminal.of_int, info)
     in
     let iter_decl = function
       | Grammar.DeclToken (ty, ids) -> List.iter (iter_token ty) ids
@@ -29,10 +25,9 @@ module Run (S : Types.Settings) (A : Types.Ast) : Types.Grammar = struct
   (* Define non-terminals *)
   let _ =
     let iter_rule rule =
-      let name = rule.Grammar.id.data
-      and loc = fst rule.Grammar.id.loc in
-      let info = { ni_name = name; ni_starting = false; ni_def_loc = loc } in
-      Hashtbl.replace nterm name (Hashtbl.length nterm |> Nonterminal.of_int, info)
+      let name = rule.Grammar.id in
+      let info = { ni_name = name; ni_starting = false } in
+      Hashtbl.replace nterm name.data (Hashtbl.length nterm |> Nonterminal.of_int, info)
     in
     List.iter iter_rule A.ast.rules
   ;;
@@ -40,9 +35,8 @@ module Run (S : Types.Settings) (A : Types.Ast) : Types.Grammar = struct
   (* Mark starting symbols *)
   let _ =
     let iter_start name =
-      let name = name.Grammar.data in
-      let id, info = Hashtbl.find nterm name in
-      Hashtbl.replace nterm name (id, { info with ni_starting = true })
+      let id, info = Hashtbl.find nterm name.data in
+      Hashtbl.replace nterm name.data (id, { info with ni_starting = true })
     in
     let iter_decl = function
       | Grammar.DeclStart (_, ids) -> List.iter iter_start ids
@@ -70,10 +64,9 @@ module Run (S : Types.Settings) (A : Types.Ast) : Types.Grammar = struct
       | { Grammar.id = Some id; _ } -> Some id.data
       | { Grammar.id = None; _ } -> None
     in
-    let sa_code = p.Grammar.action.data
-    and sa_def_loc = fst p.Grammar.action.loc
+    let sa_code = p.Grammar.action
     and sa_args = List.map id p.Grammar.prod in
-    { sa_symbol = symbol; sa_index = index; sa_args; sa_code; sa_def_loc }
+    { sa_symbol = symbol; sa_index = index; sa_args; sa_code }
   ;;
 
   (** Create semantic action and item from given production `prod`, then register
@@ -119,6 +112,4 @@ module Run (S : Types.Settings) (A : Types.Ast) : Types.Grammar = struct
   ;;
 
   let group n = NTermMap.find n groups
-
-  include A
 end

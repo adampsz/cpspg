@@ -24,7 +24,7 @@ module type Ast = sig
 end
 
 module type Grammar = sig
-  val header : string
+  val header : string Automaton.node
   val term : Automaton.Terminal.t -> Automaton.term_info
   val nterm : Automaton.Nonterminal.t -> Automaton.nterm_info
   val group : Automaton.Nonterminal.t -> Automaton.group

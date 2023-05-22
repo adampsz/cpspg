@@ -5,8 +5,8 @@ end) =
 struct
   open Automaton
 
-  let term_name t = (I.term t).ti_name
-  let nterm_name n = (I.nterm n).ni_name
+  let term_name t = (I.term t).ti_name.data
+  let nterm_name n = (I.nterm n).ni_name.data
 
   let fmt_arg f = function
     | Term t -> Format.pp_print_string f (term_name t)
