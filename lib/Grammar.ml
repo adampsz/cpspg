@@ -1,37 +1,42 @@
 type 'a node =
-  { range : Lexing.position * Lexing.position
+  { loc : Lexing.position * Lexing.position
   ; data : 'a
   }
 
-type decl =
-  | DeclToken of string option * string list
-  | DeclStart of string list
-  | DeclType of string * string list
-  | DeclLeft of string list
-  | DeclRight of string list
-  | DeclNonassoc of string list
+type id = string node
+type tid = string node
+type ty = string node
+type code = string node
 
-type actual =
-  | NTerm of string
-  | Term of string
+type symbol =
+  | NTerm of id
+  | Term of tid
+
+type decl =
+  | DeclToken of ty option * tid list
+  | DeclStart of ty option * id list
+  | DeclType of ty * symbol list
+  | DeclLeft of symbol list
+  | DeclRight of symbol list
+  | DeclNonassoc of symbol list
 
 type producer =
-  { id : string option
-  ; actual : actual
+  { id : id option
+  ; actual : symbol
   }
 
 type production =
   { prod : producer list
-  ; action : string
+  ; action : code
   }
 
 type rule =
-  { id : string
+  { id : id
   ; prods : production list
   }
 
 type t =
-  { header : string
+  { header : code
   ; decls : decl list
   ; rules : rule list
   }

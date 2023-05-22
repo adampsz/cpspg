@@ -1,7 +1,8 @@
 (library
  (name cpspg))
 
-(ocamllex Lexer)
+(ocamllex
+ (modules Lexer))
 
 (rule
  (deps Parser.mly)

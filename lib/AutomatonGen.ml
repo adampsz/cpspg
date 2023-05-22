@@ -153,18 +153,21 @@ module Run (S : Settings) (I : Input) : Automaton = struct
   module NTermMap = Map.Make (Nonterminal)
 
   module G : Grammar = struct
-    let header = I.grammar.header
+    let header = I.grammar.header.data
     let term = Hashtbl.create 16
     let nterm = Hashtbl.create 16
 
     (* Define terminals *)
     let _ =
       let iter_token ty name =
+        let name = name.Grammar.data in
         let info = { ti_name = name; ti_ty = ty } in
         Hashtbl.replace term name (Hashtbl.length term |> Terminal.of_int, info)
       in
       let iter_decl = function
-        | Grammar.DeclToken (ty, ids) -> List.iter (iter_token ty) ids
+        | Grammar.DeclToken (ty, ids) ->
+          let ty = Option.map (fun x -> x.Grammar.data) ty in
+          List.iter (iter_token ty) ids
         | _ -> ()
       in
       List.iter iter_decl I.grammar.decls
@@ -173,7 +176,7 @@ module Run (S : Settings) (I : Input) : Automaton = struct
     (* Define non-terminals *)
     let _ =
       let iter_rule rule =
-        let name = rule.Grammar.id in
+        let name = rule.Grammar.id.data in
         let info = { ni_name = name; ni_starting = false } in
         Hashtbl.replace nterm name (Hashtbl.length nterm |> Nonterminal.of_int, info)
       in
@@ -183,11 +186,12 @@ module Run (S : Settings) (I : Input) : Automaton = struct
     (* Mark starting symbols *)
     let _ =
       let iter_start name =
+        let name = name.Grammar.data in
         let id, info = Hashtbl.find nterm name in
         Hashtbl.replace nterm name (id, { info with ni_starting = true })
       in
       let iter_decl = function
-        | Grammar.DeclStart ids -> List.iter iter_start ids
+        | Grammar.DeclStart (_, ids) -> List.iter iter_start ids
         | _ -> ()
       in
       List.iter iter_decl I.grammar.decls
@@ -200,19 +204,21 @@ module Run (S : Settings) (I : Input) : Automaton = struct
     ;;
 
     let tr_symbol = function
-      | Grammar.Term n -> Term (Hashtbl.find term n |> fst)
-      | Grammar.NTerm n -> NTerm (Hashtbl.find nterm n |> fst)
+      | Grammar.Term n -> Term (Hashtbl.find term n.data |> fst)
+      | Grammar.NTerm n -> NTerm (Hashtbl.find nterm n.data |> fst)
     ;;
 
     let tr_symbols p = List.map (fun p -> tr_symbol p.Grammar.actual) p.Grammar.prod
 
     and tr_action p symbol index =
       let id = function
-        | { Grammar.id = None; Grammar.actual = Grammar.NTerm name; _ } -> Some name
-        | { Grammar.id; _ } -> id
+        | { Grammar.id = None; Grammar.actual = Grammar.NTerm name; _ } -> Some name.data
+        | { Grammar.id = Some id; _ } -> Some id.data
+        | { Grammar.id = None; _ } -> None
       in
+      let sa_code = p.Grammar.action.data in
       let sa_args = List.map id p.Grammar.prod in
-      { sa_symbol = symbol; sa_index = index; sa_args; sa_code = p.Grammar.action }
+      { sa_symbol = symbol; sa_index = index; sa_args; sa_code }
     ;;
 
     (** Create semantic action and item from given production `prod`, then register
@@ -229,7 +235,7 @@ module Run (S : Settings) (I : Input) : Automaton = struct
        then add group to `groups`. *)
     let fold_rule (actions, groups) rule =
       let prods = List.sort compare_prod_length rule.Grammar.prods in
-      let g_symbol = fst (Hashtbl.find nterm rule.Grammar.id)
+      let g_symbol = fst (Hashtbl.find nterm rule.Grammar.id.data)
       and g_lookahead = TermSet.empty in
       let actions, g_items, _ =
         List.fold_left (fold_prod g_symbol) (actions, [], 0) prods

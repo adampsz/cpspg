@@ -2,6 +2,8 @@
 
 open Grammar
 
+let mknode ~loc data = { loc; data }
+
 type token =
   | ID of string
   | TID of string
@@ -21,253 +23,237 @@ type token =
   | EOF
 
 module Actions = struct
-  let a1_grammar rules decls header () = { header; decls; rules }
-  let a2_header header () = header
-  let a3_decls decls decl () = decl :: decls
-  let a4_decls () = []
-  let a5_decl tids tp () = DeclToken (Some tp, tids)
-  let a6_decl ids tp () = DeclType (tp, ids)
-  let a7_decl tids () = DeclToken (None, tids)
-  let a8_decl ids () = DeclStart ids
-  let a9_decl ids () = DeclLeft ids
-  let a10_decl ids () = DeclRight ids
-  let a11_decl ids () = DeclNonassoc ids
-  let a12_tids tids id () = id :: tids
-  let a13_tids () = []
-  let a14_ids ids id () = id :: ids
-  let a15_ids () = []
-  let a16_rules rules rule () = rule :: rules
-  let a17_rules () = []
-  let a18_rule prods id () = { id; prods }
-  let a19_rule_prods productions production () = production :: productions
-  let a20_rule_prods productions () = productions
-  let a21_productions productions production () = production :: productions
-  let a22_productions () = []
-  let a23_production action prod () = { prod; action }
-  let a24_producers producers producer () = producer :: producers
-  let a25_producers () = []
-  let a26_producer actual id () = { id = Some id; actual }
-  let a27_producer actual () = { id = None; actual }
-  let a28_actual name () = NTerm name
-  let a29_actual name () = Term name
+  let a1_grammar ~loc:_loc rules decls header () = { header; decls; rules }
+  let a2_decls ~loc:_loc xs x () = x :: xs
+  let a3_decls ~loc:_loc () = []
+  let a4_decl ~loc:_loc xs tp () = DeclToken (Some tp, xs)
+  let a5_decl ~loc:_loc xs tp () = DeclStart (Some tp, xs)
+  let a6_decl ~loc:_loc xs tp () = DeclType (tp, xs)
+  let a7_decl ~loc:_loc xs () = DeclToken (None, xs)
+  let a8_decl ~loc:_loc xs () = DeclStart (None, xs)
+  let a9_decl ~loc:_loc xs () = DeclLeft xs
+  let a10_decl ~loc:_loc xs () = DeclRight xs
+  let a11_decl ~loc:_loc xs () = DeclNonassoc xs
+  let a12_rules ~loc:_loc xs x () = x :: xs
+  let a13_rules ~loc:_loc () = []
+  let a14_rule ~loc:_loc prods id () = { id; prods }
+  let a15_rule_prods ~loc:_loc xs x () = x :: xs
+  let a16_rule_prods ~loc:_loc xs () = xs
+  let a17_productions ~loc:_loc xs x () = x :: xs
+  let a18_productions ~loc:_loc () = []
+  let a19_production ~loc:_loc action prod () = { prod; action }
+  let a20_producers ~loc:_loc xs x () = x :: xs
+  let a21_producers ~loc:_loc () = []
+  let a22_producer ~loc:_loc actual id () = { id = Some id; actual }
+  let a23_producer ~loc:_loc actual () = { id = None; actual }
+  let a24_ids ~loc:_loc xs x () = x :: xs
+  let a25_ids ~loc:_loc () = []
+  let a26_tids ~loc:_loc xs x () = x :: xs
+  let a27_tids ~loc:_loc () = []
+  let a28_symbols ~loc:_loc xs x () = x :: xs
+  let a29_symbols ~loc:_loc () = []
+  let a30_symbol ~loc:_loc name () = NTerm name
+  let a31_symbol ~loc:_loc name () = Term name
+  let a32_id ~loc:_loc x () = mknode ~loc:(List.hd _loc) x
+  let a33_tid ~loc:_loc x () = mknode ~loc:(List.hd _loc) x
+  let a34_tp ~loc:_loc x () = mknode ~loc:(List.hd _loc) x
+  let a35_code ~loc:_loc x () = mknode ~loc:(List.hd _loc) x
 end
 
 module States = struct
   let lexfun = ref (fun _ -> assert false)
   let lexbuf = ref (Lexing.from_string String.empty)
-  let lookahead = ref None
+  let peeked = ref None
+  let lexbuf_fallback_p = ref Lexing.dummy_pos
 
   let setup lf lb =
     lexfun := lf;
     lexbuf := lb;
-    lookahead := None
+    peeked := None;
+    lexbuf_fallback_p := !lexbuf.lex_curr_p
   ;;
 
   let shift () =
-    let t = Option.get !lookahead in
-    lookahead := None;
-    t
+    let loc, _ = Option.get !peeked in
+    peeked := None;
+    lexbuf_fallback_p := !lexbuf.lex_curr_p;
+    loc
   ;;
 
   let lookahead () =
-    match !lookahead with
-    | Some t -> t
+    match !peeked with
+    | Some (_, tok) -> tok
     | None ->
-      let t = !lexfun !lexbuf in
-      lookahead := Some t;
-      t
+      let tok = !lexfun !lexbuf
+      and loc = !lexbuf.lex_start_p, !lexbuf.lex_curr_p in
+      peeked := Some (loc, tok);
+      tok
+  ;;
+
+  let reduce_loc ~loc = function
+    | 0 -> (!lexbuf_fallback_p, !lexbuf_fallback_p) :: loc
+    | n ->
+      let rec skip n xs = if n = 0 then xs else skip (n - 1) (List.tl xs) in
+      let l = fst (List.nth loc (n - 1)), snd (List.hd loc) in
+      l :: skip n loc
   ;;
 
   (* ITEMS:
-       grammar' → . header decls DSEP rules EOF
-       header → . CODE /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       grammar' → . code decls DSEP rules EOF
+       code → . CODE /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
      GOTO:
        CODE -> 1
-       header -> 2
+       code -> 2
      ACTION:
        CODE -> shift *)
-  let rec state_0 c0_grammar_starting =
-    let rec c1_header x = state_2 x c0_grammar_starting in
+  let rec state_0 ~loc c0_grammar_starting =
+    let rec c1_code ~loc x = state_2 ~loc x c0_grammar_starting in
     match lookahead () with
     (* Shift *)
     | CODE x ->
-      let _ = shift () in
-      state_1 x c1_header
+      let loc = shift () :: loc in
+      state_1 ~loc x c1_code
     | _ -> raise (Failure "error in state 0")
 
   (* ITEMS:
-       header → CODE . /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       code → CODE . /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP /SEMI /BAR
      GOTO:
        
      ACTION:
-       DTOKEN DTYPE DSTART DLEFT DRIGHT DNONASSOC DSEP -> reduce 0 0 *)
-  and state_1 a0_CODE c0_header =
+       DTOKEN DTYPE DSTART DLEFT DRIGHT DNONASSOC DSEP SEMI BAR -> reduce 0 0 *)
+  and state_1 ~loc a0_CODE c0_code =
     match lookahead () with
     (* Reduce *)
-    | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
-      let x = Actions.a2_header a0_CODE () in
-      c0_header x
+    | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP | SEMI | BAR ->
+      let x = Actions.a35_code ~loc a0_CODE ()
+      and loc = reduce_loc ~loc 1 in
+      c0_code ~loc x
     | _ -> raise (Failure "error in state 1")
 
   (* ITEMS:
-       grammar' → header . decls DSEP rules EOF
+       grammar' → code . decls DSEP rules EOF
        decls → . decl decls /DSEP
        decls → . /DSEP
-       decl → . DTOKEN TYPE tids /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-       decl → . DTYPE TYPE ids /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       decl → . DTOKEN tp tids /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       decl → . DSTART tp ids /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       decl → . DTYPE tp symbols /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
        decl → . DTOKEN tids /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
        decl → . DSTART ids /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-       decl → . DLEFT ids /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-       decl → . DRIGHT ids /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-       decl → . DNONASSOC ids /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       decl → . DLEFT symbols /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       decl → . DRIGHT symbols /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       decl → . DNONASSOC symbols /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
      GOTO:
        DTOKEN -> 3
-       DTYPE -> 9
-       DSTART -> 14
-       DLEFT -> 16
-       DRIGHT -> 18
-       DNONASSOC -> 20
-       decls -> 22
-       decl -> 48
+       DTYPE -> 11
+       DSTART -> 19
+       DLEFT -> 25
+       DRIGHT -> 27
+       DNONASSOC -> 29
+       decls -> 31
+       decl -> 55
      ACTION:
        DSEP -> reduce 1 1
        DTOKEN DTYPE DSTART DLEFT DRIGHT DNONASSOC -> shift *)
-  and state_2 a0_header c0_grammar_starting =
-    let rec c1_decls x = state_22 x a0_header c0_grammar_starting
-    and c2_decl x = state_48 x c1_decls in
+  and state_2 ~loc a0_code c0_grammar_starting =
+    let rec c1_decls ~loc x = state_31 ~loc x a0_code c0_grammar_starting
+    and c2_decl ~loc x = state_55 ~loc x c1_decls in
     match lookahead () with
     (* Reduce *)
     | DSEP ->
-      let x = Actions.a4_decls () in
-      c1_decls x
+      let x = Actions.a3_decls ~loc ()
+      and loc = reduce_loc ~loc 0 in
+      c1_decls ~loc x
     (* Shift *)
     | DTOKEN ->
-      let _ = shift () in
-      state_3 c2_decl
+      let loc = shift () :: loc in
+      state_3 ~loc c2_decl
     (* Shift *)
     | DTYPE ->
-      let _ = shift () in
-      state_9 c2_decl
+      let loc = shift () :: loc in
+      state_11 ~loc c2_decl
     (* Shift *)
     | DSTART ->
-      let _ = shift () in
-      state_14 c2_decl
+      let loc = shift () :: loc in
+      state_19 ~loc c2_decl
     (* Shift *)
     | DLEFT ->
-      let _ = shift () in
-      state_16 c2_decl
+      let loc = shift () :: loc in
+      state_25 ~loc c2_decl
     (* Shift *)
     | DRIGHT ->
-      let _ = shift () in
-      state_18 c2_decl
+      let loc = shift () :: loc in
+      state_27 ~loc c2_decl
     (* Shift *)
     | DNONASSOC ->
-      let _ = shift () in
-      state_20 c2_decl
+      let loc = shift () :: loc in
+      state_29 ~loc c2_decl
     | _ -> raise (Failure "error in state 2")
 
   (* ITEMS:
-       decl → DTOKEN . TYPE tids /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       decl → DTOKEN . tp tids /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
        decl → DTOKEN . tids /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-       tids → . TID tids /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       tids → . tid tids /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
        tids → . /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       tid → . TID /TID /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       tp → . TYPE /TID /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
      GOTO:
        TID -> 4
-       TYPE -> 6
-       tids -> 8
+       TYPE -> 5
+       tids -> 6
+       tid -> 7
+       tp -> 9
      ACTION:
        DTOKEN DTYPE DSTART DLEFT DRIGHT DNONASSOC DSEP -> reduce 1 1
        TID TYPE -> shift *)
-  and state_3 c0_decl =
-    let rec c1_tids x = state_8 x c0_decl in
+  and state_3 ~loc c0_decl =
+    let rec c1_tids ~loc x = state_6 ~loc x c0_decl
+    and c2_tid ~loc x = state_7 ~loc x c1_tids
+    and c3_tp ~loc x = state_9 ~loc x c0_decl in
     match lookahead () with
     (* Reduce *)
     | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
-      let x = Actions.a13_tids () in
-      c1_tids x
+      let x = Actions.a27_tids ~loc ()
+      and loc = reduce_loc ~loc 0 in
+      c1_tids ~loc x
     (* Shift *)
     | TID x ->
-      let _ = shift () in
-      state_4 x c1_tids
+      let loc = shift () :: loc in
+      state_4 ~loc x c2_tid
     (* Shift *)
     | TYPE x ->
-      let _ = shift () in
-      state_6 x c0_decl
+      let loc = shift () :: loc in
+      state_5 ~loc x c3_tp
     | _ -> raise (Failure "error in state 3")
 
   (* ITEMS:
-       tids → TID . tids /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-       tids → . TID tids /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-       tids → . /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       tid → TID . /ID /TID /CODE /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
      GOTO:
-       TID -> 4
-       tids -> 5
+       
      ACTION:
-       DTOKEN DTYPE DSTART DLEFT DRIGHT DNONASSOC DSEP -> reduce 1 1
-       TID -> shift *)
-  and state_4 a0_TID c0_tids =
-    let rec c1_tids x = state_5 x a0_TID c0_tids in
+       ID TID CODE DTOKEN DTYPE DSTART DLEFT DRIGHT DNONASSOC DSEP -> reduce 0 0 *)
+  and state_4 ~loc a0_TID c0_tid =
     match lookahead () with
     (* Reduce *)
-    | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
-      let x = Actions.a13_tids () in
-      c1_tids x
-    (* Shift *)
-    | TID x ->
-      let _ = shift () in
-      state_4 x c1_tids
+    | ID _ | TID _ | CODE _ | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
+      let x = Actions.a33_tid ~loc a0_TID ()
+      and loc = reduce_loc ~loc 1 in
+      c0_tid ~loc x
     | _ -> raise (Failure "error in state 4")
 
   (* ITEMS:
-       tids → TID tids . /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       tp → TYPE . /ID /TID /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
      GOTO:
        
      ACTION:
-       DTOKEN DTYPE DSTART DLEFT DRIGHT DNONASSOC DSEP -> reduce 0 0 *)
-  and state_5 a0_tids a1_TID c0_tids =
+       ID TID DTOKEN DTYPE DSTART DLEFT DRIGHT DNONASSOC DSEP -> reduce 0 0 *)
+  and state_5 ~loc a0_TYPE c0_tp =
     match lookahead () with
     (* Reduce *)
-    | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
-      let x = Actions.a12_tids a0_tids a1_TID () in
-      c0_tids x
+    | ID _ | TID _ | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
+      let x = Actions.a34_tp ~loc a0_TYPE ()
+      and loc = reduce_loc ~loc 1 in
+      c0_tp ~loc x
     | _ -> raise (Failure "error in state 5")
-
-  (* ITEMS:
-       decl → DTOKEN TYPE . tids /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-       tids → . TID tids /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-       tids → . /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-     GOTO:
-       TID -> 4
-       tids -> 7
-     ACTION:
-       DTOKEN DTYPE DSTART DLEFT DRIGHT DNONASSOC DSEP -> reduce 1 1
-       TID -> shift *)
-  and state_6 a0_TYPE c0_decl =
-    let rec c1_tids x = state_7 x a0_TYPE c0_decl in
-    match lookahead () with
-    (* Reduce *)
-    | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
-      let x = Actions.a13_tids () in
-      c1_tids x
-    (* Shift *)
-    | TID x ->
-      let _ = shift () in
-      state_4 x c1_tids
-    | _ -> raise (Failure "error in state 6")
-
-  (* ITEMS:
-       decl → DTOKEN TYPE tids . /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-     GOTO:
-       
-     ACTION:
-       DTOKEN DTYPE DSTART DLEFT DRIGHT DNONASSOC DSEP -> reduce 0 0 *)
-  and state_7 a0_tids a1_TYPE c0_decl =
-    match lookahead () with
-    (* Reduce *)
-    | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
-      let x = Actions.a5_decl a0_tids a1_TYPE () in
-      c0_decl x
-    | _ -> raise (Failure "error in state 7")
 
   (* ITEMS:
        decl → DTOKEN tids . /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
@@ -275,124 +261,304 @@ module States = struct
        
      ACTION:
        DTOKEN DTYPE DSTART DLEFT DRIGHT DNONASSOC DSEP -> reduce 0 0 *)
-  and state_8 a0_tids c0_decl =
+  and state_6 ~loc a0_tids c0_decl =
     match lookahead () with
     (* Reduce *)
     | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
-      let x = Actions.a7_decl a0_tids () in
-      c0_decl x
+      let x = Actions.a7_decl ~loc a0_tids ()
+      and loc = reduce_loc ~loc 2 in
+      c0_decl ~loc x
+    | _ -> raise (Failure "error in state 6")
+
+  (* ITEMS:
+       tids → tid . tids /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       tids → . tid tids /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       tids → . /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       tid → . TID /TID /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+     GOTO:
+       TID -> 4
+       tids -> 8
+       tid -> 7
+     ACTION:
+       DTOKEN DTYPE DSTART DLEFT DRIGHT DNONASSOC DSEP -> reduce 1 1
+       TID -> shift *)
+  and state_7 ~loc a0_tid c0_tids =
+    let rec c1_tids ~loc x = state_8 ~loc x a0_tid c0_tids
+    and c2_tid ~loc x = state_7 ~loc x c1_tids in
+    match lookahead () with
+    (* Reduce *)
+    | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
+      let x = Actions.a27_tids ~loc ()
+      and loc = reduce_loc ~loc 0 in
+      c1_tids ~loc x
+    (* Shift *)
+    | TID x ->
+      let loc = shift () :: loc in
+      state_4 ~loc x c2_tid
+    | _ -> raise (Failure "error in state 7")
+
+  (* ITEMS:
+       tids → tid tids . /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+     GOTO:
+       
+     ACTION:
+       DTOKEN DTYPE DSTART DLEFT DRIGHT DNONASSOC DSEP -> reduce 0 0 *)
+  and state_8 ~loc a0_tids a1_tid c0_tids =
+    match lookahead () with
+    (* Reduce *)
+    | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
+      let x = Actions.a26_tids ~loc a0_tids a1_tid ()
+      and loc = reduce_loc ~loc 2 in
+      c0_tids ~loc x
     | _ -> raise (Failure "error in state 8")
 
   (* ITEMS:
-       decl → DTYPE . TYPE ids /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       decl → DTOKEN tp . tids /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       tids → . tid tids /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       tids → . /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       tid → . TID /TID /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
      GOTO:
-       TYPE -> 10
+       TID -> 4
+       tids -> 10
+       tid -> 7
      ACTION:
-       TYPE -> shift *)
-  and state_9 c0_decl =
+       DTOKEN DTYPE DSTART DLEFT DRIGHT DNONASSOC DSEP -> reduce 1 1
+       TID -> shift *)
+  and state_9 ~loc a0_tp c0_decl =
+    let rec c1_tids ~loc x = state_10 ~loc x a0_tp c0_decl
+    and c2_tid ~loc x = state_7 ~loc x c1_tids in
     match lookahead () with
+    (* Reduce *)
+    | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
+      let x = Actions.a27_tids ~loc ()
+      and loc = reduce_loc ~loc 0 in
+      c1_tids ~loc x
     (* Shift *)
-    | TYPE x ->
-      let _ = shift () in
-      state_10 x c0_decl
+    | TID x ->
+      let loc = shift () :: loc in
+      state_4 ~loc x c2_tid
     | _ -> raise (Failure "error in state 9")
 
   (* ITEMS:
-       decl → DTYPE TYPE . ids /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-       ids → . ID ids /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-       ids → . /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       decl → DTOKEN tp tids . /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
      GOTO:
-       ID -> 11
-       ids -> 13
+       
      ACTION:
-       DTOKEN DTYPE DSTART DLEFT DRIGHT DNONASSOC DSEP -> reduce 1 1
-       ID -> shift *)
-  and state_10 a0_TYPE c0_decl =
-    let rec c1_ids x = state_13 x a0_TYPE c0_decl in
+       DTOKEN DTYPE DSTART DLEFT DRIGHT DNONASSOC DSEP -> reduce 0 0 *)
+  and state_10 ~loc a0_tids a1_tp c0_decl =
     match lookahead () with
     (* Reduce *)
     | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
-      let x = Actions.a15_ids () in
-      c1_ids x
-    (* Shift *)
-    | ID x ->
-      let _ = shift () in
-      state_11 x c1_ids
+      let x = Actions.a4_decl ~loc a0_tids a1_tp ()
+      and loc = reduce_loc ~loc 3 in
+      c0_decl ~loc x
     | _ -> raise (Failure "error in state 10")
 
   (* ITEMS:
-       ids → ID . ids /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-       ids → . ID ids /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-       ids → . /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       decl → DTYPE . tp symbols /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       tp → . TYPE /ID /TID /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
      GOTO:
-       ID -> 11
-       ids -> 12
+       TYPE -> 5
+       tp -> 12
      ACTION:
-       DTOKEN DTYPE DSTART DLEFT DRIGHT DNONASSOC DSEP -> reduce 1 1
-       ID -> shift *)
-  and state_11 a0_ID c0_ids =
-    let rec c1_ids x = state_12 x a0_ID c0_ids in
+       TYPE -> shift *)
+  and state_11 ~loc c0_decl =
+    let rec c1_tp ~loc x = state_12 ~loc x c0_decl in
     match lookahead () with
-    (* Reduce *)
-    | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
-      let x = Actions.a15_ids () in
-      c1_ids x
     (* Shift *)
-    | ID x ->
-      let _ = shift () in
-      state_11 x c1_ids
+    | TYPE x ->
+      let loc = shift () :: loc in
+      state_5 ~loc x c1_tp
     | _ -> raise (Failure "error in state 11")
 
   (* ITEMS:
-       ids → ID ids . /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       decl → DTYPE tp . symbols /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       symbols → . symbol symbols /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       symbols → . /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       symbol → . id /ID /TID /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       symbol → . tid /ID /TID /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       id → . ID /ID /TID /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       tid → . TID /ID /TID /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
      GOTO:
-       
+       ID -> 13
+       TID -> 4
+       symbols -> 14
+       symbol -> 15
+       id -> 17
+       tid -> 18
      ACTION:
-       DTOKEN DTYPE DSTART DLEFT DRIGHT DNONASSOC DSEP -> reduce 0 0 *)
-  and state_12 a0_ids a1_ID c0_ids =
+       DTOKEN DTYPE DSTART DLEFT DRIGHT DNONASSOC DSEP -> reduce 1 1
+       ID TID -> shift *)
+  and state_12 ~loc a0_tp c0_decl =
+    let rec c1_symbols ~loc x = state_14 ~loc x a0_tp c0_decl
+    and c2_symbol ~loc x = state_15 ~loc x c1_symbols
+    and c3_id ~loc x = state_17 ~loc x c2_symbol
+    and c4_tid ~loc x = state_18 ~loc x c2_symbol in
     match lookahead () with
     (* Reduce *)
     | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
-      let x = Actions.a14_ids a0_ids a1_ID () in
-      c0_ids x
+      let x = Actions.a29_symbols ~loc ()
+      and loc = reduce_loc ~loc 0 in
+      c1_symbols ~loc x
+    (* Shift *)
+    | ID x ->
+      let loc = shift () :: loc in
+      state_13 ~loc x c3_id
+    (* Shift *)
+    | TID x ->
+      let loc = shift () :: loc in
+      state_4 ~loc x c4_tid
     | _ -> raise (Failure "error in state 12")
 
   (* ITEMS:
-       decl → DTYPE TYPE ids . /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       id → ID . /ID /TID /CODE /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP /COLON /EQ
+     GOTO:
+       
+     ACTION:
+       ID TID CODE DTOKEN DTYPE DSTART DLEFT DRIGHT DNONASSOC DSEP COLON EQ -> reduce 0 0 *)
+  and state_13 ~loc a0_ID c0_id =
+    match lookahead () with
+    (* Reduce *)
+    | ID _ | TID _ | CODE _ | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP | COLON | EQ ->
+      let x = Actions.a32_id ~loc a0_ID ()
+      and loc = reduce_loc ~loc 1 in
+      c0_id ~loc x
+    | _ -> raise (Failure "error in state 13")
+
+  (* ITEMS:
+       decl → DTYPE tp symbols . /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
      GOTO:
        
      ACTION:
        DTOKEN DTYPE DSTART DLEFT DRIGHT DNONASSOC DSEP -> reduce 0 0 *)
-  and state_13 a0_ids a1_TYPE c0_decl =
+  and state_14 ~loc a0_symbols a1_tp c0_decl =
     match lookahead () with
     (* Reduce *)
     | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
-      let x = Actions.a6_decl a0_ids a1_TYPE () in
-      c0_decl x
-    | _ -> raise (Failure "error in state 13")
+      let x = Actions.a6_decl ~loc a0_symbols a1_tp ()
+      and loc = reduce_loc ~loc 3 in
+      c0_decl ~loc x
+    | _ -> raise (Failure "error in state 14")
 
   (* ITEMS:
-       decl → DSTART . ids /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-       ids → . ID ids /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-       ids → . /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       symbols → symbol . symbols /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       symbols → . symbol symbols /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       symbols → . /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       symbol → . id /ID /TID /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       symbol → . tid /ID /TID /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       id → . ID /ID /TID /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       tid → . TID /ID /TID /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
      GOTO:
-       ID -> 11
-       ids -> 15
+       ID -> 13
+       TID -> 4
+       symbols -> 16
+       symbol -> 15
+       id -> 17
+       tid -> 18
      ACTION:
        DTOKEN DTYPE DSTART DLEFT DRIGHT DNONASSOC DSEP -> reduce 1 1
-       ID -> shift *)
-  and state_14 c0_decl =
-    let rec c1_ids x = state_15 x c0_decl in
+       ID TID -> shift *)
+  and state_15 ~loc a0_symbol c0_symbols =
+    let rec c1_symbols ~loc x = state_16 ~loc x a0_symbol c0_symbols
+    and c2_symbol ~loc x = state_15 ~loc x c1_symbols
+    and c3_id ~loc x = state_17 ~loc x c2_symbol
+    and c4_tid ~loc x = state_18 ~loc x c2_symbol in
     match lookahead () with
     (* Reduce *)
     | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
-      let x = Actions.a15_ids () in
-      c1_ids x
+      let x = Actions.a29_symbols ~loc ()
+      and loc = reduce_loc ~loc 0 in
+      c1_symbols ~loc x
     (* Shift *)
     | ID x ->
-      let _ = shift () in
-      state_11 x c1_ids
-    | _ -> raise (Failure "error in state 14")
+      let loc = shift () :: loc in
+      state_13 ~loc x c3_id
+    (* Shift *)
+    | TID x ->
+      let loc = shift () :: loc in
+      state_4 ~loc x c4_tid
+    | _ -> raise (Failure "error in state 15")
+
+  (* ITEMS:
+       symbols → symbol symbols . /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+     GOTO:
+       
+     ACTION:
+       DTOKEN DTYPE DSTART DLEFT DRIGHT DNONASSOC DSEP -> reduce 0 0 *)
+  and state_16 ~loc a0_symbols a1_symbol c0_symbols =
+    match lookahead () with
+    (* Reduce *)
+    | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
+      let x = Actions.a28_symbols ~loc a0_symbols a1_symbol ()
+      and loc = reduce_loc ~loc 2 in
+      c0_symbols ~loc x
+    | _ -> raise (Failure "error in state 16")
+
+  (* ITEMS:
+       symbol → id . /ID /TID /CODE /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+     GOTO:
+       
+     ACTION:
+       ID TID CODE DTOKEN DTYPE DSTART DLEFT DRIGHT DNONASSOC DSEP -> reduce 0 0 *)
+  and state_17 ~loc a0_id c0_symbol =
+    match lookahead () with
+    (* Reduce *)
+    | ID _ | TID _ | CODE _ | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
+      let x = Actions.a30_symbol ~loc a0_id ()
+      and loc = reduce_loc ~loc 1 in
+      c0_symbol ~loc x
+    | _ -> raise (Failure "error in state 17")
+
+  (* ITEMS:
+       symbol → tid . /ID /TID /CODE /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+     GOTO:
+       
+     ACTION:
+       ID TID CODE DTOKEN DTYPE DSTART DLEFT DRIGHT DNONASSOC DSEP -> reduce 0 0 *)
+  and state_18 ~loc a0_tid c0_symbol =
+    match lookahead () with
+    (* Reduce *)
+    | ID _ | TID _ | CODE _ | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
+      let x = Actions.a31_symbol ~loc a0_tid ()
+      and loc = reduce_loc ~loc 1 in
+      c0_symbol ~loc x
+    | _ -> raise (Failure "error in state 18")
+
+  (* ITEMS:
+       decl → DSTART . tp ids /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       decl → DSTART . ids /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       ids → . id ids /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       ids → . /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       id → . ID /ID /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       tp → . TYPE /ID /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+     GOTO:
+       ID -> 13
+       TYPE -> 5
+       ids -> 20
+       id -> 21
+       tp -> 23
+     ACTION:
+       DTOKEN DTYPE DSTART DLEFT DRIGHT DNONASSOC DSEP -> reduce 1 1
+       ID TYPE -> shift *)
+  and state_19 ~loc c0_decl =
+    let rec c1_ids ~loc x = state_20 ~loc x c0_decl
+    and c2_id ~loc x = state_21 ~loc x c1_ids
+    and c3_tp ~loc x = state_23 ~loc x c0_decl in
+    match lookahead () with
+    (* Reduce *)
+    | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
+      let x = Actions.a25_ids ~loc ()
+      and loc = reduce_loc ~loc 0 in
+      c1_ids ~loc x
+    (* Shift *)
+    | ID x ->
+      let loc = shift () :: loc in
+      state_13 ~loc x c2_id
+    (* Shift *)
+    | TYPE x ->
+      let loc = shift () :: loc in
+      state_5 ~loc x c3_tp
+    | _ -> raise (Failure "error in state 19")
 
   (* ITEMS:
        decl → DSTART ids . /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
@@ -400,618 +566,359 @@ module States = struct
        
      ACTION:
        DTOKEN DTYPE DSTART DLEFT DRIGHT DNONASSOC DSEP -> reduce 0 0 *)
-  and state_15 a0_ids c0_decl =
+  and state_20 ~loc a0_ids c0_decl =
     match lookahead () with
     (* Reduce *)
     | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
-      let x = Actions.a8_decl a0_ids () in
-      c0_decl x
-    | _ -> raise (Failure "error in state 15")
-
-  (* ITEMS:
-       decl → DLEFT . ids /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-       ids → . ID ids /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-       ids → . /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-     GOTO:
-       ID -> 11
-       ids -> 17
-     ACTION:
-       DTOKEN DTYPE DSTART DLEFT DRIGHT DNONASSOC DSEP -> reduce 1 1
-       ID -> shift *)
-  and state_16 c0_decl =
-    let rec c1_ids x = state_17 x c0_decl in
-    match lookahead () with
-    (* Reduce *)
-    | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
-      let x = Actions.a15_ids () in
-      c1_ids x
-    (* Shift *)
-    | ID x ->
-      let _ = shift () in
-      state_11 x c1_ids
-    | _ -> raise (Failure "error in state 16")
-
-  (* ITEMS:
-       decl → DLEFT ids . /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-     GOTO:
-       
-     ACTION:
-       DTOKEN DTYPE DSTART DLEFT DRIGHT DNONASSOC DSEP -> reduce 0 0 *)
-  and state_17 a0_ids c0_decl =
-    match lookahead () with
-    (* Reduce *)
-    | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
-      let x = Actions.a9_decl a0_ids () in
-      c0_decl x
-    | _ -> raise (Failure "error in state 17")
-
-  (* ITEMS:
-       decl → DRIGHT . ids /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-       ids → . ID ids /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-       ids → . /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-     GOTO:
-       ID -> 11
-       ids -> 19
-     ACTION:
-       DTOKEN DTYPE DSTART DLEFT DRIGHT DNONASSOC DSEP -> reduce 1 1
-       ID -> shift *)
-  and state_18 c0_decl =
-    let rec c1_ids x = state_19 x c0_decl in
-    match lookahead () with
-    (* Reduce *)
-    | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
-      let x = Actions.a15_ids () in
-      c1_ids x
-    (* Shift *)
-    | ID x ->
-      let _ = shift () in
-      state_11 x c1_ids
-    | _ -> raise (Failure "error in state 18")
-
-  (* ITEMS:
-       decl → DRIGHT ids . /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-     GOTO:
-       
-     ACTION:
-       DTOKEN DTYPE DSTART DLEFT DRIGHT DNONASSOC DSEP -> reduce 0 0 *)
-  and state_19 a0_ids c0_decl =
-    match lookahead () with
-    (* Reduce *)
-    | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
-      let x = Actions.a10_decl a0_ids () in
-      c0_decl x
-    | _ -> raise (Failure "error in state 19")
-
-  (* ITEMS:
-       decl → DNONASSOC . ids /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-       ids → . ID ids /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-       ids → . /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-     GOTO:
-       ID -> 11
-       ids -> 21
-     ACTION:
-       DTOKEN DTYPE DSTART DLEFT DRIGHT DNONASSOC DSEP -> reduce 1 1
-       ID -> shift *)
-  and state_20 c0_decl =
-    let rec c1_ids x = state_21 x c0_decl in
-    match lookahead () with
-    (* Reduce *)
-    | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
-      let x = Actions.a15_ids () in
-      c1_ids x
-    (* Shift *)
-    | ID x ->
-      let _ = shift () in
-      state_11 x c1_ids
+      let x = Actions.a8_decl ~loc a0_ids ()
+      and loc = reduce_loc ~loc 2 in
+      c0_decl ~loc x
     | _ -> raise (Failure "error in state 20")
 
   (* ITEMS:
-       decl → DNONASSOC ids . /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       ids → id . ids /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       ids → . id ids /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       ids → . /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       id → . ID /ID /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+     GOTO:
+       ID -> 13
+       ids -> 22
+       id -> 21
+     ACTION:
+       DTOKEN DTYPE DSTART DLEFT DRIGHT DNONASSOC DSEP -> reduce 1 1
+       ID -> shift *)
+  and state_21 ~loc a0_id c0_ids =
+    let rec c1_ids ~loc x = state_22 ~loc x a0_id c0_ids
+    and c2_id ~loc x = state_21 ~loc x c1_ids in
+    match lookahead () with
+    (* Reduce *)
+    | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
+      let x = Actions.a25_ids ~loc ()
+      and loc = reduce_loc ~loc 0 in
+      c1_ids ~loc x
+    (* Shift *)
+    | ID x ->
+      let loc = shift () :: loc in
+      state_13 ~loc x c2_id
+    | _ -> raise (Failure "error in state 21")
+
+  (* ITEMS:
+       ids → id ids . /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
      GOTO:
        
      ACTION:
        DTOKEN DTYPE DSTART DLEFT DRIGHT DNONASSOC DSEP -> reduce 0 0 *)
-  and state_21 a0_ids c0_decl =
+  and state_22 ~loc a0_ids a1_id c0_ids =
     match lookahead () with
     (* Reduce *)
     | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
-      let x = Actions.a11_decl a0_ids () in
-      c0_decl x
-    | _ -> raise (Failure "error in state 21")
-
-  (* ITEMS:
-       grammar' → header decls . DSEP rules EOF
-     GOTO:
-       DSEP -> 23
-     ACTION:
-       DSEP -> shift *)
-  and state_22 a0_decls a1_header c0_grammar_starting =
-    match lookahead () with
-    (* Shift *)
-    | DSEP ->
-      let _ = shift () in
-      state_23 a0_decls a1_header c0_grammar_starting
+      let x = Actions.a24_ids ~loc a0_ids a1_id ()
+      and loc = reduce_loc ~loc 2 in
+      c0_ids ~loc x
     | _ -> raise (Failure "error in state 22")
 
   (* ITEMS:
-       grammar' → header decls DSEP . rules EOF
-       rules → . rule rules /EOF
-       rules → . /EOF
-       rule → . ID COLON rule_prods SEMI /ID /EOF
+       decl → DSTART tp . ids /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       ids → . id ids /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       ids → . /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       id → . ID /ID /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
      GOTO:
-       ID -> 24
-       rules -> 44
-       rule -> 46
+       ID -> 13
+       ids -> 24
+       id -> 21
      ACTION:
-       EOF -> reduce 1 1
+       DTOKEN DTYPE DSTART DLEFT DRIGHT DNONASSOC DSEP -> reduce 1 1
        ID -> shift *)
-  and state_23 a1_decls a2_header c0_grammar_starting =
-    let rec c1_rules x = state_44 x a1_decls a2_header c0_grammar_starting
-    and c2_rule x = state_46 x c1_rules in
+  and state_23 ~loc a0_tp c0_decl =
+    let rec c1_ids ~loc x = state_24 ~loc x a0_tp c0_decl
+    and c2_id ~loc x = state_21 ~loc x c1_ids in
     match lookahead () with
     (* Reduce *)
-    | EOF ->
-      let x = Actions.a17_rules () in
-      c1_rules x
+    | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
+      let x = Actions.a25_ids ~loc ()
+      and loc = reduce_loc ~loc 0 in
+      c1_ids ~loc x
     (* Shift *)
     | ID x ->
-      let _ = shift () in
-      state_24 x c2_rule
+      let loc = shift () :: loc in
+      state_13 ~loc x c2_id
     | _ -> raise (Failure "error in state 23")
 
   (* ITEMS:
-       rule → ID . COLON rule_prods SEMI /ID /EOF
+       decl → DSTART tp ids . /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
      GOTO:
-       COLON -> 25
+       
      ACTION:
-       COLON -> shift *)
-  and state_24 a0_ID c0_rule =
+       DTOKEN DTYPE DSTART DLEFT DRIGHT DNONASSOC DSEP -> reduce 0 0 *)
+  and state_24 ~loc a0_ids a1_tp c0_decl =
     match lookahead () with
-    (* Shift *)
-    | COLON ->
-      let _ = shift () in
-      state_25 a0_ID c0_rule
+    (* Reduce *)
+    | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
+      let x = Actions.a5_decl ~loc a0_ids a1_tp ()
+      and loc = reduce_loc ~loc 3 in
+      c0_decl ~loc x
     | _ -> raise (Failure "error in state 24")
 
   (* ITEMS:
-       rule → ID COLON . rule_prods SEMI /ID /EOF
-       rule_prods → . production productions /SEMI
-       rule_prods → . productions /SEMI
-       productions → . BAR production productions /SEMI
-       productions → . /SEMI
-       production → . producers CODE /SEMI /BAR
-       producers → . producer producers /CODE
-       producers → . /CODE
-       producer → . ID EQ actual /ID /TID /CODE
-       producer → . actual /ID /TID /CODE
-       actual → . ID /ID /TID /CODE
-       actual → . TID /ID /TID /CODE
+       decl → DLEFT . symbols /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       symbols → . symbol symbols /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       symbols → . /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       symbol → . id /ID /TID /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       symbol → . tid /ID /TID /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       id → . ID /ID /TID /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       tid → . TID /ID /TID /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
      GOTO:
-       ID -> 26
-       TID -> 29
-       BAR -> 31
-       rule_prods -> 39
-       productions -> 41
-       production -> 42
-       producers -> 34
-       producer -> 36
-       actual -> 38
+       ID -> 13
+       TID -> 4
+       symbols -> 26
+       symbol -> 15
+       id -> 17
+       tid -> 18
      ACTION:
-       CODE -> reduce 4 1
-       SEMI -> reduce 2 1
-       ID TID BAR -> shift *)
-  and state_25 a1_ID c0_rule =
-    let rec c1_rule_prods x = state_39 x a1_ID c0_rule
-    and c2_productions x = state_41 x c1_rule_prods
-    and c3_production x = state_42 x c1_rule_prods
-    and c4_producers x = state_34 x c3_production
-    and c5_producer x = state_36 x c4_producers
-    and c6_actual x = state_38 x c5_producer in
+       DTOKEN DTYPE DSTART DLEFT DRIGHT DNONASSOC DSEP -> reduce 1 1
+       ID TID -> shift *)
+  and state_25 ~loc c0_decl =
+    let rec c1_symbols ~loc x = state_26 ~loc x c0_decl
+    and c2_symbol ~loc x = state_15 ~loc x c1_symbols
+    and c3_id ~loc x = state_17 ~loc x c2_symbol
+    and c4_tid ~loc x = state_18 ~loc x c2_symbol in
     match lookahead () with
     (* Reduce *)
-    | CODE _ ->
-      let x = Actions.a25_producers () in
-      c4_producers x
-    (* Reduce *)
-    | SEMI ->
-      let x = Actions.a22_productions () in
-      c2_productions x
+    | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
+      let x = Actions.a29_symbols ~loc ()
+      and loc = reduce_loc ~loc 0 in
+      c1_symbols ~loc x
     (* Shift *)
     | ID x ->
-      let _ = shift () in
-      state_26 x c5_producer c6_actual
+      let loc = shift () :: loc in
+      state_13 ~loc x c3_id
     (* Shift *)
     | TID x ->
-      let _ = shift () in
-      state_29 x c6_actual
-    (* Shift *)
-    | BAR ->
-      let _ = shift () in
-      state_31 c2_productions
+      let loc = shift () :: loc in
+      state_4 ~loc x c4_tid
     | _ -> raise (Failure "error in state 25")
 
   (* ITEMS:
-       producer → ID . EQ actual /ID /TID /CODE
-       actual → ID . /ID /TID /CODE
+       decl → DLEFT symbols . /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
      GOTO:
-       EQ -> 27
+       
      ACTION:
-       ID TID CODE -> reduce 1 0
-       EQ -> shift *)
-  and state_26 a0_ID c0_producer c1_actual =
+       DTOKEN DTYPE DSTART DLEFT DRIGHT DNONASSOC DSEP -> reduce 0 0 *)
+  and state_26 ~loc a0_symbols c0_decl =
     match lookahead () with
     (* Reduce *)
-    | ID _ | TID _ | CODE _ ->
-      let x = Actions.a28_actual a0_ID () in
-      c1_actual x
-    (* Shift *)
-    | EQ ->
-      let _ = shift () in
-      state_27 a0_ID c0_producer
+    | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
+      let x = Actions.a9_decl ~loc a0_symbols ()
+      and loc = reduce_loc ~loc 2 in
+      c0_decl ~loc x
     | _ -> raise (Failure "error in state 26")
 
   (* ITEMS:
-       producer → ID EQ . actual /ID /TID /CODE
-       actual → . ID /ID /TID /CODE
-       actual → . TID /ID /TID /CODE
+       decl → DRIGHT . symbols /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       symbols → . symbol symbols /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       symbols → . /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       symbol → . id /ID /TID /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       symbol → . tid /ID /TID /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       id → . ID /ID /TID /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       tid → . TID /ID /TID /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
      GOTO:
-       ID -> 28
-       TID -> 29
-       actual -> 30
+       ID -> 13
+       TID -> 4
+       symbols -> 28
+       symbol -> 15
+       id -> 17
+       tid -> 18
      ACTION:
+       DTOKEN DTYPE DSTART DLEFT DRIGHT DNONASSOC DSEP -> reduce 1 1
        ID TID -> shift *)
-  and state_27 a1_ID c0_producer =
-    let rec c1_actual x = state_30 x a1_ID c0_producer in
+  and state_27 ~loc c0_decl =
+    let rec c1_symbols ~loc x = state_28 ~loc x c0_decl
+    and c2_symbol ~loc x = state_15 ~loc x c1_symbols
+    and c3_id ~loc x = state_17 ~loc x c2_symbol
+    and c4_tid ~loc x = state_18 ~loc x c2_symbol in
     match lookahead () with
+    (* Reduce *)
+    | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
+      let x = Actions.a29_symbols ~loc ()
+      and loc = reduce_loc ~loc 0 in
+      c1_symbols ~loc x
     (* Shift *)
     | ID x ->
-      let _ = shift () in
-      state_28 x c1_actual
+      let loc = shift () :: loc in
+      state_13 ~loc x c3_id
     (* Shift *)
     | TID x ->
-      let _ = shift () in
-      state_29 x c1_actual
+      let loc = shift () :: loc in
+      state_4 ~loc x c4_tid
     | _ -> raise (Failure "error in state 27")
 
   (* ITEMS:
-       actual → ID . /ID /TID /CODE
+       decl → DRIGHT symbols . /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
      GOTO:
        
      ACTION:
-       ID TID CODE -> reduce 0 0 *)
-  and state_28 a0_ID c0_actual =
+       DTOKEN DTYPE DSTART DLEFT DRIGHT DNONASSOC DSEP -> reduce 0 0 *)
+  and state_28 ~loc a0_symbols c0_decl =
     match lookahead () with
     (* Reduce *)
-    | ID _ | TID _ | CODE _ ->
-      let x = Actions.a28_actual a0_ID () in
-      c0_actual x
+    | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
+      let x = Actions.a10_decl ~loc a0_symbols ()
+      and loc = reduce_loc ~loc 2 in
+      c0_decl ~loc x
     | _ -> raise (Failure "error in state 28")
 
   (* ITEMS:
-       actual → TID . /ID /TID /CODE
+       decl → DNONASSOC . symbols /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       symbols → . symbol symbols /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       symbols → . /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       symbol → . id /ID /TID /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       symbol → . tid /ID /TID /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       id → . ID /ID /TID /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       tid → . TID /ID /TID /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
      GOTO:
-       
+       ID -> 13
+       TID -> 4
+       symbols -> 30
+       symbol -> 15
+       id -> 17
+       tid -> 18
      ACTION:
-       ID TID CODE -> reduce 0 0 *)
-  and state_29 a0_TID c0_actual =
+       DTOKEN DTYPE DSTART DLEFT DRIGHT DNONASSOC DSEP -> reduce 1 1
+       ID TID -> shift *)
+  and state_29 ~loc c0_decl =
+    let rec c1_symbols ~loc x = state_30 ~loc x c0_decl
+    and c2_symbol ~loc x = state_15 ~loc x c1_symbols
+    and c3_id ~loc x = state_17 ~loc x c2_symbol
+    and c4_tid ~loc x = state_18 ~loc x c2_symbol in
     match lookahead () with
     (* Reduce *)
-    | ID _ | TID _ | CODE _ ->
-      let x = Actions.a29_actual a0_TID () in
-      c0_actual x
+    | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
+      let x = Actions.a29_symbols ~loc ()
+      and loc = reduce_loc ~loc 0 in
+      c1_symbols ~loc x
+    (* Shift *)
+    | ID x ->
+      let loc = shift () :: loc in
+      state_13 ~loc x c3_id
+    (* Shift *)
+    | TID x ->
+      let loc = shift () :: loc in
+      state_4 ~loc x c4_tid
     | _ -> raise (Failure "error in state 29")
 
   (* ITEMS:
-       producer → ID EQ actual . /ID /TID /CODE
+       decl → DNONASSOC symbols . /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
      GOTO:
        
      ACTION:
-       ID TID CODE -> reduce 0 0 *)
-  and state_30 a0_actual a2_ID c0_producer =
+       DTOKEN DTYPE DSTART DLEFT DRIGHT DNONASSOC DSEP -> reduce 0 0 *)
+  and state_30 ~loc a0_symbols c0_decl =
     match lookahead () with
     (* Reduce *)
-    | ID _ | TID _ | CODE _ ->
-      let x = Actions.a26_producer a0_actual a2_ID () in
-      c0_producer x
+    | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
+      let x = Actions.a11_decl ~loc a0_symbols ()
+      and loc = reduce_loc ~loc 2 in
+      c0_decl ~loc x
     | _ -> raise (Failure "error in state 30")
 
   (* ITEMS:
-       productions → BAR . production productions /SEMI
-       production → . producers CODE /SEMI /BAR
-       producers → . producer producers /CODE
-       producers → . /CODE
-       producer → . ID EQ actual /ID /TID /CODE
-       producer → . actual /ID /TID /CODE
-       actual → . ID /ID /TID /CODE
-       actual → . TID /ID /TID /CODE
+       grammar' → code decls . DSEP rules EOF
      GOTO:
-       ID -> 26
-       TID -> 29
-       production -> 32
-       producers -> 34
-       producer -> 36
-       actual -> 38
+       DSEP -> 32
      ACTION:
-       CODE -> reduce 2 1
-       ID TID -> shift *)
-  and state_31 c0_productions =
-    let rec c1_production x = state_32 x c0_productions
-    and c2_producers x = state_34 x c1_production
-    and c3_producer x = state_36 x c2_producers
-    and c4_actual x = state_38 x c3_producer in
+       DSEP -> shift *)
+  and state_31 ~loc a0_decls a1_code c0_grammar_starting =
     match lookahead () with
-    (* Reduce *)
-    | CODE _ ->
-      let x = Actions.a25_producers () in
-      c2_producers x
     (* Shift *)
-    | ID x ->
-      let _ = shift () in
-      state_26 x c3_producer c4_actual
-    (* Shift *)
-    | TID x ->
-      let _ = shift () in
-      state_29 x c4_actual
+    | DSEP ->
+      let loc = shift () :: loc in
+      state_32 ~loc a0_decls a1_code c0_grammar_starting
     | _ -> raise (Failure "error in state 31")
 
   (* ITEMS:
-       productions → BAR production . productions /SEMI
-       productions → . BAR production productions /SEMI
-       productions → . /SEMI
+       grammar' → code decls DSEP . rules EOF
+       rules → . rule rules /EOF
+       rules → . /EOF
+       rule → . id COLON rule_prods SEMI /ID /EOF
+       id → . ID /COLON
      GOTO:
-       BAR -> 31
-       productions -> 33
+       ID -> 13
+       rules -> 33
+       rule -> 35
+       id -> 37
      ACTION:
-       SEMI -> reduce 1 1
-       BAR -> shift *)
-  and state_32 a0_production c0_productions =
-    let rec c1_productions x = state_33 x a0_production c0_productions in
+       EOF -> reduce 1 1
+       ID -> shift *)
+  and state_32 ~loc a1_decls a2_code c0_grammar_starting =
+    let rec c1_rules ~loc x = state_33 ~loc x a1_decls a2_code c0_grammar_starting
+    and c2_rule ~loc x = state_35 ~loc x c1_rules
+    and c3_id ~loc x = state_37 ~loc x c2_rule in
     match lookahead () with
     (* Reduce *)
-    | SEMI ->
-      let x = Actions.a22_productions () in
-      c1_productions x
+    | EOF ->
+      let x = Actions.a13_rules ~loc ()
+      and loc = reduce_loc ~loc 0 in
+      c1_rules ~loc x
     (* Shift *)
-    | BAR ->
-      let _ = shift () in
-      state_31 c1_productions
+    | ID x ->
+      let loc = shift () :: loc in
+      state_13 ~loc x c3_id
     | _ -> raise (Failure "error in state 32")
 
   (* ITEMS:
-       productions → BAR production productions . /SEMI
+       grammar' → code decls DSEP rules . EOF
      GOTO:
-       
-     ACTION:
-       SEMI -> reduce 0 0 *)
-  and state_33 a0_productions a1_production c0_productions =
-    match lookahead () with
-    (* Reduce *)
-    | SEMI ->
-      let x = Actions.a21_productions a0_productions a1_production () in
-      c0_productions x
-    | _ -> raise (Failure "error in state 33")
-
-  (* ITEMS:
-       production → producers . CODE /SEMI /BAR
-     GOTO:
-       CODE -> 35
-     ACTION:
-       CODE -> shift *)
-  and state_34 a0_producers c0_production =
-    match lookahead () with
-    (* Shift *)
-    | CODE x ->
-      let _ = shift () in
-      state_35 x a0_producers c0_production
-    | _ -> raise (Failure "error in state 34")
-
-  (* ITEMS:
-       production → producers CODE . /SEMI /BAR
-     GOTO:
-       
-     ACTION:
-       SEMI BAR -> reduce 0 0 *)
-  and state_35 a0_CODE a1_producers c0_production =
-    match lookahead () with
-    (* Reduce *)
-    | SEMI | BAR ->
-      let x = Actions.a23_production a0_CODE a1_producers () in
-      c0_production x
-    | _ -> raise (Failure "error in state 35")
-
-  (* ITEMS:
-       producers → producer . producers /CODE
-       producers → . producer producers /CODE
-       producers → . /CODE
-       producer → . ID EQ actual /ID /TID /CODE
-       producer → . actual /ID /TID /CODE
-       actual → . ID /ID /TID /CODE
-       actual → . TID /ID /TID /CODE
-     GOTO:
-       ID -> 26
-       TID -> 29
-       producers -> 37
-       producer -> 36
-       actual -> 38
-     ACTION:
-       CODE -> reduce 1 1
-       ID TID -> shift *)
-  and state_36 a0_producer c0_producers =
-    let rec c1_producers x = state_37 x a0_producer c0_producers
-    and c2_producer x = state_36 x c1_producers
-    and c3_actual x = state_38 x c2_producer in
-    match lookahead () with
-    (* Reduce *)
-    | CODE _ ->
-      let x = Actions.a25_producers () in
-      c1_producers x
-    (* Shift *)
-    | ID x ->
-      let _ = shift () in
-      state_26 x c2_producer c3_actual
-    (* Shift *)
-    | TID x ->
-      let _ = shift () in
-      state_29 x c3_actual
-    | _ -> raise (Failure "error in state 36")
-
-  (* ITEMS:
-       producers → producer producers . /CODE
-     GOTO:
-       
-     ACTION:
-       CODE -> reduce 0 0 *)
-  and state_37 a0_producers a1_producer c0_producers =
-    match lookahead () with
-    (* Reduce *)
-    | CODE _ ->
-      let x = Actions.a24_producers a0_producers a1_producer () in
-      c0_producers x
-    | _ -> raise (Failure "error in state 37")
-
-  (* ITEMS:
-       producer → actual . /ID /TID /CODE
-     GOTO:
-       
-     ACTION:
-       ID TID CODE -> reduce 0 0 *)
-  and state_38 a0_actual c0_producer =
-    match lookahead () with
-    (* Reduce *)
-    | ID _ | TID _ | CODE _ ->
-      let x = Actions.a27_producer a0_actual () in
-      c0_producer x
-    | _ -> raise (Failure "error in state 38")
-
-  (* ITEMS:
-       rule → ID COLON rule_prods . SEMI /ID /EOF
-     GOTO:
-       SEMI -> 40
-     ACTION:
-       SEMI -> shift *)
-  and state_39 a0_rule_prods a2_ID c0_rule =
-    match lookahead () with
-    (* Shift *)
-    | SEMI ->
-      let _ = shift () in
-      state_40 a0_rule_prods a2_ID c0_rule
-    | _ -> raise (Failure "error in state 39")
-
-  (* ITEMS:
-       rule → ID COLON rule_prods SEMI . /ID /EOF
-     GOTO:
-       
-     ACTION:
-       ID EOF -> reduce 0 0 *)
-  and state_40 a1_rule_prods a3_ID c0_rule =
-    match lookahead () with
-    (* Reduce *)
-    | ID _ | EOF ->
-      let x = Actions.a18_rule a1_rule_prods a3_ID () in
-      c0_rule x
-    | _ -> raise (Failure "error in state 40")
-
-  (* ITEMS:
-       rule_prods → productions . /SEMI
-     GOTO:
-       
-     ACTION:
-       SEMI -> reduce 0 0 *)
-  and state_41 a0_productions c0_rule_prods =
-    match lookahead () with
-    (* Reduce *)
-    | SEMI ->
-      let x = Actions.a20_rule_prods a0_productions () in
-      c0_rule_prods x
-    | _ -> raise (Failure "error in state 41")
-
-  (* ITEMS:
-       rule_prods → production . productions /SEMI
-       productions → . BAR production productions /SEMI
-       productions → . /SEMI
-     GOTO:
-       BAR -> 31
-       productions -> 43
-     ACTION:
-       SEMI -> reduce 1 1
-       BAR -> shift *)
-  and state_42 a0_production c0_rule_prods =
-    let rec c1_productions x = state_43 x a0_production c0_rule_prods in
-    match lookahead () with
-    (* Reduce *)
-    | SEMI ->
-      let x = Actions.a22_productions () in
-      c1_productions x
-    (* Shift *)
-    | BAR ->
-      let _ = shift () in
-      state_31 c1_productions
-    | _ -> raise (Failure "error in state 42")
-
-  (* ITEMS:
-       rule_prods → production productions . /SEMI
-     GOTO:
-       
-     ACTION:
-       SEMI -> reduce 0 0 *)
-  and state_43 a0_productions a1_production c0_rule_prods =
-    match lookahead () with
-    (* Reduce *)
-    | SEMI ->
-      let x = Actions.a19_rule_prods a0_productions a1_production () in
-      c0_rule_prods x
-    | _ -> raise (Failure "error in state 43")
-
-  (* ITEMS:
-       grammar' → header decls DSEP rules . EOF
-     GOTO:
-       EOF -> 45
+       EOF -> 34
      ACTION:
        EOF -> shift *)
-  and state_44 a0_rules a2_decls a3_header c0_grammar_starting =
+  and state_33 ~loc a0_rules a2_decls a3_code c0_grammar_starting =
     match lookahead () with
     (* Shift *)
     | EOF ->
-      let _ = shift () in
-      state_45 a0_rules a2_decls a3_header c0_grammar_starting
-    | _ -> raise (Failure "error in state 44")
+      let loc = shift () :: loc in
+      state_34 ~loc a0_rules a2_decls a3_code c0_grammar_starting
+    | _ -> raise (Failure "error in state 33")
 
   (* ITEMS:
-       grammar' → header decls DSEP rules EOF .
+       grammar' → code decls DSEP rules EOF .
      GOTO:
        
      ACTION:
        -> reduce 0 0 *)
-  and state_45 a1_rules a3_decls a4_header c0_grammar_starting =
+  and state_34 ~loc a1_rules a3_decls a4_code c0_grammar_starting =
     (* Reduce *)
-    let x = Actions.a1_grammar a1_rules a3_decls a4_header () in
+    let x = Actions.a1_grammar ~loc a1_rules a3_decls a4_code () in
     c0_grammar_starting x
 
   (* ITEMS:
        rules → rule . rules /EOF
        rules → . rule rules /EOF
        rules → . /EOF
-       rule → . ID COLON rule_prods SEMI /ID /EOF
+       rule → . id COLON rule_prods SEMI /ID /EOF
+       id → . ID /COLON
      GOTO:
-       ID -> 24
-       rules -> 47
-       rule -> 46
+       ID -> 13
+       rules -> 36
+       rule -> 35
+       id -> 37
      ACTION:
        EOF -> reduce 1 1
        ID -> shift *)
-  and state_46 a0_rule c0_rules =
-    let rec c1_rules x = state_47 x a0_rule c0_rules
-    and c2_rule x = state_46 x c1_rules in
+  and state_35 ~loc a0_rule c0_rules =
+    let rec c1_rules ~loc x = state_36 ~loc x a0_rule c0_rules
+    and c2_rule ~loc x = state_35 ~loc x c1_rules
+    and c3_id ~loc x = state_37 ~loc x c2_rule in
     match lookahead () with
     (* Reduce *)
     | EOF ->
-      let x = Actions.a17_rules () in
-      c1_rules x
+      let x = Actions.a13_rules ~loc ()
+      and loc = reduce_loc ~loc 0 in
+      c1_rules ~loc x
     (* Shift *)
     | ID x ->
-      let _ = shift () in
-      state_24 x c2_rule
-    | _ -> raise (Failure "error in state 46")
+      let loc = shift () :: loc in
+      state_13 ~loc x c3_id
+    | _ -> raise (Failure "error in state 35")
 
   (* ITEMS:
        rules → rule rules . /EOF
@@ -1019,70 +926,490 @@ module States = struct
        
      ACTION:
        EOF -> reduce 0 0 *)
-  and state_47 a0_rules a1_rule c0_rules =
+  and state_36 ~loc a0_rules a1_rule c0_rules =
     match lookahead () with
     (* Reduce *)
     | EOF ->
-      let x = Actions.a16_rules a0_rules a1_rule () in
-      c0_rules x
+      let x = Actions.a12_rules ~loc a0_rules a1_rule ()
+      and loc = reduce_loc ~loc 2 in
+      c0_rules ~loc x
+    | _ -> raise (Failure "error in state 36")
+
+  (* ITEMS:
+       rule → id . COLON rule_prods SEMI /ID /EOF
+     GOTO:
+       COLON -> 38
+     ACTION:
+       COLON -> shift *)
+  and state_37 ~loc a0_id c0_rule =
+    match lookahead () with
+    (* Shift *)
+    | COLON ->
+      let loc = shift () :: loc in
+      state_38 ~loc a0_id c0_rule
+    | _ -> raise (Failure "error in state 37")
+
+  (* ITEMS:
+       rule → id COLON . rule_prods SEMI /ID /EOF
+       rule_prods → . production productions /SEMI
+       rule_prods → . productions /SEMI
+       productions → . BAR production productions /SEMI
+       productions → . /SEMI
+       production → . producers code /SEMI /BAR
+       producers → . producer producers /CODE
+       producers → . /CODE
+       producer → . id EQ symbol /ID /TID /CODE
+       producer → . symbol /ID /TID /CODE
+       symbol → . id /ID /TID /CODE
+       symbol → . tid /ID /TID /CODE
+       id → . ID /ID /TID /CODE /EQ
+       tid → . TID /ID /TID /CODE
+     GOTO:
+       ID -> 13
+       TID -> 4
+       BAR -> 39
+       rule_prods -> 50
+       productions -> 52
+       production -> 53
+       producers -> 42
+       producer -> 44
+       symbol -> 46
+       id -> 47
+       tid -> 18
+     ACTION:
+       CODE -> reduce 4 1
+       SEMI -> reduce 2 1
+       ID TID BAR -> shift *)
+  and state_38 ~loc a1_id c0_rule =
+    let rec c1_rule_prods ~loc x = state_50 ~loc x a1_id c0_rule
+    and c2_productions ~loc x = state_52 ~loc x c1_rule_prods
+    and c3_production ~loc x = state_53 ~loc x c1_rule_prods
+    and c4_producers ~loc x = state_42 ~loc x c3_production
+    and c5_producer ~loc x = state_44 ~loc x c4_producers
+    and c6_symbol ~loc x = state_46 ~loc x c5_producer
+    and c7_id ~loc x = state_47 ~loc x c5_producer c6_symbol
+    and c8_tid ~loc x = state_18 ~loc x c6_symbol in
+    match lookahead () with
+    (* Reduce *)
+    | CODE _ ->
+      let x = Actions.a21_producers ~loc ()
+      and loc = reduce_loc ~loc 0 in
+      c4_producers ~loc x
+    (* Reduce *)
+    | SEMI ->
+      let x = Actions.a18_productions ~loc ()
+      and loc = reduce_loc ~loc 0 in
+      c2_productions ~loc x
+    (* Shift *)
+    | ID x ->
+      let loc = shift () :: loc in
+      state_13 ~loc x c7_id
+    (* Shift *)
+    | TID x ->
+      let loc = shift () :: loc in
+      state_4 ~loc x c8_tid
+    (* Shift *)
+    | BAR ->
+      let loc = shift () :: loc in
+      state_39 ~loc c2_productions
+    | _ -> raise (Failure "error in state 38")
+
+  (* ITEMS:
+       productions → BAR . production productions /SEMI
+       production → . producers code /SEMI /BAR
+       producers → . producer producers /CODE
+       producers → . /CODE
+       producer → . id EQ symbol /ID /TID /CODE
+       producer → . symbol /ID /TID /CODE
+       symbol → . id /ID /TID /CODE
+       symbol → . tid /ID /TID /CODE
+       id → . ID /ID /TID /CODE /EQ
+       tid → . TID /ID /TID /CODE
+     GOTO:
+       ID -> 13
+       TID -> 4
+       production -> 40
+       producers -> 42
+       producer -> 44
+       symbol -> 46
+       id -> 47
+       tid -> 18
+     ACTION:
+       CODE -> reduce 2 1
+       ID TID -> shift *)
+  and state_39 ~loc c0_productions =
+    let rec c1_production ~loc x = state_40 ~loc x c0_productions
+    and c2_producers ~loc x = state_42 ~loc x c1_production
+    and c3_producer ~loc x = state_44 ~loc x c2_producers
+    and c4_symbol ~loc x = state_46 ~loc x c3_producer
+    and c5_id ~loc x = state_47 ~loc x c3_producer c4_symbol
+    and c6_tid ~loc x = state_18 ~loc x c4_symbol in
+    match lookahead () with
+    (* Reduce *)
+    | CODE _ ->
+      let x = Actions.a21_producers ~loc ()
+      and loc = reduce_loc ~loc 0 in
+      c2_producers ~loc x
+    (* Shift *)
+    | ID x ->
+      let loc = shift () :: loc in
+      state_13 ~loc x c5_id
+    (* Shift *)
+    | TID x ->
+      let loc = shift () :: loc in
+      state_4 ~loc x c6_tid
+    | _ -> raise (Failure "error in state 39")
+
+  (* ITEMS:
+       productions → BAR production . productions /SEMI
+       productions → . BAR production productions /SEMI
+       productions → . /SEMI
+     GOTO:
+       BAR -> 39
+       productions -> 41
+     ACTION:
+       SEMI -> reduce 1 1
+       BAR -> shift *)
+  and state_40 ~loc a0_production c0_productions =
+    let rec c1_productions ~loc x = state_41 ~loc x a0_production c0_productions in
+    match lookahead () with
+    (* Reduce *)
+    | SEMI ->
+      let x = Actions.a18_productions ~loc ()
+      and loc = reduce_loc ~loc 0 in
+      c1_productions ~loc x
+    (* Shift *)
+    | BAR ->
+      let loc = shift () :: loc in
+      state_39 ~loc c1_productions
+    | _ -> raise (Failure "error in state 40")
+
+  (* ITEMS:
+       productions → BAR production productions . /SEMI
+     GOTO:
+       
+     ACTION:
+       SEMI -> reduce 0 0 *)
+  and state_41 ~loc a0_productions a1_production c0_productions =
+    match lookahead () with
+    (* Reduce *)
+    | SEMI ->
+      let x = Actions.a17_productions ~loc a0_productions a1_production ()
+      and loc = reduce_loc ~loc 3 in
+      c0_productions ~loc x
+    | _ -> raise (Failure "error in state 41")
+
+  (* ITEMS:
+       production → producers . code /SEMI /BAR
+       code → . CODE /SEMI /BAR
+     GOTO:
+       CODE -> 1
+       code -> 43
+     ACTION:
+       CODE -> shift *)
+  and state_42 ~loc a0_producers c0_production =
+    let rec c1_code ~loc x = state_43 ~loc x a0_producers c0_production in
+    match lookahead () with
+    (* Shift *)
+    | CODE x ->
+      let loc = shift () :: loc in
+      state_1 ~loc x c1_code
+    | _ -> raise (Failure "error in state 42")
+
+  (* ITEMS:
+       production → producers code . /SEMI /BAR
+     GOTO:
+       
+     ACTION:
+       SEMI BAR -> reduce 0 0 *)
+  and state_43 ~loc a0_code a1_producers c0_production =
+    match lookahead () with
+    (* Reduce *)
+    | SEMI | BAR ->
+      let x = Actions.a19_production ~loc a0_code a1_producers ()
+      and loc = reduce_loc ~loc 2 in
+      c0_production ~loc x
+    | _ -> raise (Failure "error in state 43")
+
+  (* ITEMS:
+       producers → producer . producers /CODE
+       producers → . producer producers /CODE
+       producers → . /CODE
+       producer → . id EQ symbol /ID /TID /CODE
+       producer → . symbol /ID /TID /CODE
+       symbol → . id /ID /TID /CODE
+       symbol → . tid /ID /TID /CODE
+       id → . ID /ID /TID /CODE /EQ
+       tid → . TID /ID /TID /CODE
+     GOTO:
+       ID -> 13
+       TID -> 4
+       producers -> 45
+       producer -> 44
+       symbol -> 46
+       id -> 47
+       tid -> 18
+     ACTION:
+       CODE -> reduce 1 1
+       ID TID -> shift *)
+  and state_44 ~loc a0_producer c0_producers =
+    let rec c1_producers ~loc x = state_45 ~loc x a0_producer c0_producers
+    and c2_producer ~loc x = state_44 ~loc x c1_producers
+    and c3_symbol ~loc x = state_46 ~loc x c2_producer
+    and c4_id ~loc x = state_47 ~loc x c2_producer c3_symbol
+    and c5_tid ~loc x = state_18 ~loc x c3_symbol in
+    match lookahead () with
+    (* Reduce *)
+    | CODE _ ->
+      let x = Actions.a21_producers ~loc ()
+      and loc = reduce_loc ~loc 0 in
+      c1_producers ~loc x
+    (* Shift *)
+    | ID x ->
+      let loc = shift () :: loc in
+      state_13 ~loc x c4_id
+    (* Shift *)
+    | TID x ->
+      let loc = shift () :: loc in
+      state_4 ~loc x c5_tid
+    | _ -> raise (Failure "error in state 44")
+
+  (* ITEMS:
+       producers → producer producers . /CODE
+     GOTO:
+       
+     ACTION:
+       CODE -> reduce 0 0 *)
+  and state_45 ~loc a0_producers a1_producer c0_producers =
+    match lookahead () with
+    (* Reduce *)
+    | CODE _ ->
+      let x = Actions.a20_producers ~loc a0_producers a1_producer ()
+      and loc = reduce_loc ~loc 2 in
+      c0_producers ~loc x
+    | _ -> raise (Failure "error in state 45")
+
+  (* ITEMS:
+       producer → symbol . /ID /TID /CODE
+     GOTO:
+       
+     ACTION:
+       ID TID CODE -> reduce 0 0 *)
+  and state_46 ~loc a0_symbol c0_producer =
+    match lookahead () with
+    (* Reduce *)
+    | ID _ | TID _ | CODE _ ->
+      let x = Actions.a23_producer ~loc a0_symbol ()
+      and loc = reduce_loc ~loc 1 in
+      c0_producer ~loc x
+    | _ -> raise (Failure "error in state 46")
+
+  (* ITEMS:
+       producer → id . EQ symbol /ID /TID /CODE
+       symbol → id . /ID /TID /CODE
+     GOTO:
+       EQ -> 48
+     ACTION:
+       ID TID CODE -> reduce 1 0
+       EQ -> shift *)
+  and state_47 ~loc a0_id c0_producer c1_symbol =
+    match lookahead () with
+    (* Reduce *)
+    | ID _ | TID _ | CODE _ ->
+      let x = Actions.a30_symbol ~loc a0_id ()
+      and loc = reduce_loc ~loc 1 in
+      c1_symbol ~loc x
+    (* Shift *)
+    | EQ ->
+      let loc = shift () :: loc in
+      state_48 ~loc a0_id c0_producer
     | _ -> raise (Failure "error in state 47")
+
+  (* ITEMS:
+       producer → id EQ . symbol /ID /TID /CODE
+       symbol → . id /ID /TID /CODE
+       symbol → . tid /ID /TID /CODE
+       id → . ID /ID /TID /CODE
+       tid → . TID /ID /TID /CODE
+     GOTO:
+       ID -> 13
+       TID -> 4
+       symbol -> 49
+       id -> 17
+       tid -> 18
+     ACTION:
+       ID TID -> shift *)
+  and state_48 ~loc a1_id c0_producer =
+    let rec c1_symbol ~loc x = state_49 ~loc x a1_id c0_producer
+    and c2_id ~loc x = state_17 ~loc x c1_symbol
+    and c3_tid ~loc x = state_18 ~loc x c1_symbol in
+    match lookahead () with
+    (* Shift *)
+    | ID x ->
+      let loc = shift () :: loc in
+      state_13 ~loc x c2_id
+    (* Shift *)
+    | TID x ->
+      let loc = shift () :: loc in
+      state_4 ~loc x c3_tid
+    | _ -> raise (Failure "error in state 48")
+
+  (* ITEMS:
+       producer → id EQ symbol . /ID /TID /CODE
+     GOTO:
+       
+     ACTION:
+       ID TID CODE -> reduce 0 0 *)
+  and state_49 ~loc a0_symbol a2_id c0_producer =
+    match lookahead () with
+    (* Reduce *)
+    | ID _ | TID _ | CODE _ ->
+      let x = Actions.a22_producer ~loc a0_symbol a2_id ()
+      and loc = reduce_loc ~loc 3 in
+      c0_producer ~loc x
+    | _ -> raise (Failure "error in state 49")
+
+  (* ITEMS:
+       rule → id COLON rule_prods . SEMI /ID /EOF
+     GOTO:
+       SEMI -> 51
+     ACTION:
+       SEMI -> shift *)
+  and state_50 ~loc a0_rule_prods a2_id c0_rule =
+    match lookahead () with
+    (* Shift *)
+    | SEMI ->
+      let loc = shift () :: loc in
+      state_51 ~loc a0_rule_prods a2_id c0_rule
+    | _ -> raise (Failure "error in state 50")
+
+  (* ITEMS:
+       rule → id COLON rule_prods SEMI . /ID /EOF
+     GOTO:
+       
+     ACTION:
+       ID EOF -> reduce 0 0 *)
+  and state_51 ~loc a1_rule_prods a3_id c0_rule =
+    match lookahead () with
+    (* Reduce *)
+    | ID _ | EOF ->
+      let x = Actions.a14_rule ~loc a1_rule_prods a3_id ()
+      and loc = reduce_loc ~loc 4 in
+      c0_rule ~loc x
+    | _ -> raise (Failure "error in state 51")
+
+  (* ITEMS:
+       rule_prods → productions . /SEMI
+     GOTO:
+       
+     ACTION:
+       SEMI -> reduce 0 0 *)
+  and state_52 ~loc a0_productions c0_rule_prods =
+    match lookahead () with
+    (* Reduce *)
+    | SEMI ->
+      let x = Actions.a16_rule_prods ~loc a0_productions ()
+      and loc = reduce_loc ~loc 1 in
+      c0_rule_prods ~loc x
+    | _ -> raise (Failure "error in state 52")
+
+  (* ITEMS:
+       rule_prods → production . productions /SEMI
+       productions → . BAR production productions /SEMI
+       productions → . /SEMI
+     GOTO:
+       BAR -> 39
+       productions -> 54
+     ACTION:
+       SEMI -> reduce 1 1
+       BAR -> shift *)
+  and state_53 ~loc a0_production c0_rule_prods =
+    let rec c1_productions ~loc x = state_54 ~loc x a0_production c0_rule_prods in
+    match lookahead () with
+    (* Reduce *)
+    | SEMI ->
+      let x = Actions.a18_productions ~loc ()
+      and loc = reduce_loc ~loc 0 in
+      c1_productions ~loc x
+    (* Shift *)
+    | BAR ->
+      let loc = shift () :: loc in
+      state_39 ~loc c1_productions
+    | _ -> raise (Failure "error in state 53")
+
+  (* ITEMS:
+       rule_prods → production productions . /SEMI
+     GOTO:
+       
+     ACTION:
+       SEMI -> reduce 0 0 *)
+  and state_54 ~loc a0_productions a1_production c0_rule_prods =
+    match lookahead () with
+    (* Reduce *)
+    | SEMI ->
+      let x = Actions.a15_rule_prods ~loc a0_productions a1_production ()
+      and loc = reduce_loc ~loc 2 in
+      c0_rule_prods ~loc x
+    | _ -> raise (Failure "error in state 54")
 
   (* ITEMS:
        decls → decl . decls /DSEP
        decls → . decl decls /DSEP
        decls → . /DSEP
-       decl → . DTOKEN TYPE tids /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-       decl → . DTYPE TYPE ids /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       decl → . DTOKEN tp tids /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       decl → . DSTART tp ids /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       decl → . DTYPE tp symbols /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
        decl → . DTOKEN tids /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
        decl → . DSTART ids /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-       decl → . DLEFT ids /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-       decl → . DRIGHT ids /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-       decl → . DNONASSOC ids /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       decl → . DLEFT symbols /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       decl → . DRIGHT symbols /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       decl → . DNONASSOC symbols /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
      GOTO:
        DTOKEN -> 3
-       DTYPE -> 9
-       DSTART -> 14
-       DLEFT -> 16
-       DRIGHT -> 18
-       DNONASSOC -> 20
-       decls -> 49
-       decl -> 48
+       DTYPE -> 11
+       DSTART -> 19
+       DLEFT -> 25
+       DRIGHT -> 27
+       DNONASSOC -> 29
+       decls -> 56
+       decl -> 55
      ACTION:
        DSEP -> reduce 1 1
        DTOKEN DTYPE DSTART DLEFT DRIGHT DNONASSOC -> shift *)
-  and state_48 a0_decl c0_decls =
-    let rec c1_decls x = state_49 x a0_decl c0_decls
-    and c2_decl x = state_48 x c1_decls in
+  and state_55 ~loc a0_decl c0_decls =
+    let rec c1_decls ~loc x = state_56 ~loc x a0_decl c0_decls
+    and c2_decl ~loc x = state_55 ~loc x c1_decls in
     match lookahead () with
     (* Reduce *)
     | DSEP ->
-      let x = Actions.a4_decls () in
-      c1_decls x
+      let x = Actions.a3_decls ~loc ()
+      and loc = reduce_loc ~loc 0 in
+      c1_decls ~loc x
     (* Shift *)
     | DTOKEN ->
-      let _ = shift () in
-      state_3 c2_decl
+      let loc = shift () :: loc in
+      state_3 ~loc c2_decl
     (* Shift *)
     | DTYPE ->
-      let _ = shift () in
-      state_9 c2_decl
+      let loc = shift () :: loc in
+      state_11 ~loc c2_decl
     (* Shift *)
     | DSTART ->
-      let _ = shift () in
-      state_14 c2_decl
+      let loc = shift () :: loc in
+      state_19 ~loc c2_decl
     (* Shift *)
     | DLEFT ->
-      let _ = shift () in
-      state_16 c2_decl
+      let loc = shift () :: loc in
+      state_25 ~loc c2_decl
     (* Shift *)
     | DRIGHT ->
-      let _ = shift () in
-      state_18 c2_decl
+      let loc = shift () :: loc in
+      state_27 ~loc c2_decl
     (* Shift *)
     | DNONASSOC ->
-      let _ = shift () in
-      state_20 c2_decl
-    | _ -> raise (Failure "error in state 48")
+      let loc = shift () :: loc in
+      state_29 ~loc c2_decl
+    | _ -> raise (Failure "error in state 55")
 
   (* ITEMS:
        decls → decl decls . /DSEP
@@ -1090,17 +1417,18 @@ module States = struct
        
      ACTION:
        DSEP -> reduce 0 0 *)
-  and state_49 a0_decls a1_decl c0_decls =
+  and state_56 ~loc a0_decls a1_decl c0_decls =
     match lookahead () with
     (* Reduce *)
     | DSEP ->
-      let x = Actions.a3_decls a0_decls a1_decl () in
-      c0_decls x
-    | _ -> raise (Failure "error in state 49")
+      let x = Actions.a2_decls ~loc a0_decls a1_decl ()
+      and loc = reduce_loc ~loc 2 in
+      c0_decls ~loc x
+    | _ -> raise (Failure "error in state 56")
   ;;
 end
 
-let grammar lexbuf lexfun =
+let grammar lexfun lexbuf =
   States.setup lexfun lexbuf;
-  States.state_0 (fun x -> x)
+  States.state_0 ~loc:[] (fun x -> x)
 ;;

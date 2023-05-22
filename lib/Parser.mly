@@ -1,8 +1,11 @@
 %{
     open Grammar
+
+    let mknode ~loc data = { loc; data }
 %}
 
-%start grammar
+%start<Grammar.t> grammar
+
 %token<string> ID TID TYPE CODE
 %token DTOKEN DTYPE DSTART DLEFT DRIGHT DNONASSOC DSEP
 %token COLON SEMI BAR EQ
@@ -11,72 +14,79 @@
 %%
 
 grammar:
-    | header decls DSEP rules EOF { { header; decls; rules } }
-;
-
-header:
-    | header=CODE { header }
+    | header=code decls=decls DSEP rules=rules EOF { { header; decls; rules } }
 ;
 
 decls:
-    | (* empty *) { [] }
-    | decl decls  { decl :: decls }
+    | (* empty *)      { [] }
+    | x=decl xs=decls  { x :: xs }
 ;
 
 decl:
-    | DTOKEN tp=TYPE tids { DeclToken (Some tp, tids) }
-    | DTOKEN tids         { DeclToken (None, tids) }
-    | DSTART ids          { DeclStart ids }
-    | DTYPE tp=TYPE ids   { DeclType (tp, ids) }           
-    | DLEFT ids           { DeclLeft ids }
-    | DRIGHT ids          { DeclRight ids }
-    | DNONASSOC ids       { DeclNonassoc ids }
+    | DTOKEN tp=tp xs=tids   { DeclToken (Some tp, xs) }
+    | DTOKEN xs=tids         { DeclToken (None, xs) }
+    | DSTART tp=tp xs=ids    { DeclStart (Some tp, xs) }
+    | DSTART xs=ids          { DeclStart (None, xs) }
+    | DTYPE tp=tp xs=symbols { DeclType (tp, xs) }           
+    | DLEFT xs=symbols       { DeclLeft xs }
+    | DRIGHT xs=symbols      { DeclRight xs }
+    | DNONASSOC xs=symbols   { DeclNonassoc xs }
 ;
 
-tids:
-    | (* empty *)  { [] }
-    | id=TID tids { id :: tids }
+rules:
+    | (* empty *)      { [] }
+    | x=rule xs=rules  { x :: xs }
+;
+
+rule:
+    | id=id COLON prods=rule_prods SEMI { { id; prods } }
+;
+
+rule_prods:
+    | xs=productions              { xs }
+    | x=production xs=productions { x :: xs }
+;
+
+productions:
+    | (* empty *)                     { [] }
+    | BAR x=production xs=productions { x :: xs }
+;
+
+production:
+    | prod=producers action=code { { prod; action } }
+;
+
+producers:
+    | (* empty *)             { [] }
+    | x=producer xs=producers { x :: xs }
+;
+
+producer:
+    | id=id EQ actual=symbol { { id = Some id; actual } }
+    | actual=symbol          { { id = None; actual } }
 ;
 
 ids:
     | (* empty *) { [] }
-    | id=ID ids   { id :: ids }
+    | x=id xs=ids { x :: xs }
 ;
 
-rules:
-    | (* empty *) { [] }
-    | rule rules  { rule :: rules }
+tids:
+    | (* empty *)   { [] }
+    | x=tid xs=tids { x :: xs }
 ;
 
-rule:
-    | id=ID COLON prods=rule_prods SEMI { { id; prods } }
+symbols:
+    | (* empty *)         { [] }
+    | x=symbol xs=symbols { x :: xs }
 ;
 
-rule_prods:
-    | productions            { productions }
-    | production productions { production :: productions }
+symbol:
+    | name=id  { NTerm name }
+    | name=tid { Term name }
 ;
 
-productions:
-    | (* empty *)                { [] }
-    | BAR production productions { production :: productions }
-;
-
-production:
-    | prod=producers action=CODE { { prod; action } }
-;
-
-producers:
-    | (* empty *)        { [] }
-    | producer producers { producer :: producers }
-;
-
-producer:
-    | id=ID EQ actual { { id = Some id; actual } }
-    | actual          { { id = None; actual } }
-;
-
-actual:
-    | name=ID  { NTerm name }
-    | name=TID { Term name }
-;
+id:   x=ID   { mknode ~loc:$loc x };
+tid:  x=TID  { mknode ~loc:$loc x };
+tp:   x=TYPE { mknode ~loc:$loc x };
+code: x=CODE { mknode ~loc:$loc x };

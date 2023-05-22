@@ -2,9 +2,10 @@ module IntMap = Map.Make (Int)
 module SymbolMap = Map.Make (Automaton.Symbol)
 
 module type Settings = sig
+  val positions : bool
+  val line_directives : bool
   val comments : bool
   val readable_ids : bool
-  val line_directives : bool
 end
 
 module type Input = sig
@@ -19,24 +20,35 @@ end
 let lib =
   "  let lexfun = ref (fun _ -> assert false)\n\
   \  let lexbuf = ref (Lexing.from_string String.empty)\n\
-  \  let lookahead = ref None\n\n\
+  \  let peeked = ref None\n\
+  \  let lexbuf_fallback_p = ref Lexing.dummy_pos\n\n\
   \  let setup lf lb =\n\
   \    lexfun := lf;\n\
   \    lexbuf := lb;\n\
-  \    lookahead := None\n\
+  \    peeked := None;\n\
+  \    lexbuf_fallback_p := !lexbuf.lex_curr_p\n\
   \  ;;\n\n\
   \  let shift () =\n\
-  \    let t = Option.get !lookahead in\n\
-  \    lookahead := None;\n\
-  \    t\n\
+  \    let loc, _ = Option.get !peeked in\n\
+  \    peeked := None;\n\
+  \    lexbuf_fallback_p := !lexbuf.lex_curr_p;\n\
+  \    loc\n\
   \  ;;\n\n\
   \  let lookahead () =\n\
-  \    match !lookahead with\n\
-  \    | Some t -> t\n\
+  \    match !peeked with\n\
+  \    | Some (_, tok) -> tok\n\
   \    | None ->\n\
-  \      let t = !lexfun !lexbuf in\n\
-  \      lookahead := Some t;\n\
-  \      t\n\
+  \      let tok = !lexfun !lexbuf\n\
+  \      and loc = !lexbuf.lex_start_p, !lexbuf.lex_curr_p in\n\
+  \      peeked := Some (loc, tok);\n\
+  \      tok\n\
+  \  ;;\n\n\
+  \  let reduce_loc ~loc = function\n\
+  \    | 0 -> (!lexbuf_fallback_p, !lexbuf_fallback_p) :: loc\n\
+  \    | n ->\n\
+  \      let rec skip n xs = if n = 0 then xs else skip (n - 1) (List.tl xs) in\n\
+  \      let l = fst (List.nth loc (n - 1)), snd (List.hd loc) in\n\
+  \      l :: skip n loc\n\
   \  ;;\n\n"
 ;;
 
@@ -118,8 +130,9 @@ module Run (S : Settings) (I : Input) = struct
     TermSet.iter f lookahead
   ;;
 
-  let gen_shift state sym =
+  let gen_goto state sym =
     gen_state_id (SymbolMap.find sym state.s_goto);
+    Format.fprintf I.f " ~loc";
     if symbol_has_value sym then Format.fprintf I.f " x";
     gen_arg_ids (List.find (shifts_group sym) (state.s_kernel @ state.s_closure)).g_prefix;
     gen_cont_ids (shifts_group sym) (state.s_kernel @ state.s_closure)
@@ -129,9 +142,9 @@ module Run (S : Settings) (I : Input) = struct
     let sym = NTerm group.g_symbol in
     Format.fprintf
       I.f
-      "%t x = %t"
+      "%t ~loc x = %t"
       (fun _ -> gen_cont_id group i)
-      (fun _ -> gen_shift state sym)
+      (fun _ -> gen_goto state sym)
   ;;
 
   let gen_action_call group = function
@@ -140,7 +153,8 @@ module Run (S : Settings) (I : Input) = struct
       gen_arg_ids group.g_prefix
     | { i_action; _ } ->
       let action = IntMap.find i_action I.automaton.a_actions in
-      Format.fprintf I.f " Actions.%t" (fun _ -> gen_semantic_action_id action i_action);
+      Format.fprintf I.f " Actions.%t ~loc" (fun _ ->
+        gen_semantic_action_id action i_action);
       gen_arg_ids group.g_prefix;
       Format.fprintf I.f " ()"
   ;;
@@ -148,8 +162,8 @@ module Run (S : Settings) (I : Input) = struct
   let gen_action_shift state sym =
     if S.comments then Format.fprintf I.f "    (* Shift *)\n";
     Format.fprintf I.f "    | %t ->\n" (fun _ -> gen_token_pat "x" sym);
-    Format.fprintf I.f "      let _ = shift () in\n";
-    Format.fprintf I.f "      %t\n" (fun _ -> gen_shift state (Term sym))
+    Format.fprintf I.f "      let loc = shift () :: loc in\n";
+    Format.fprintf I.f "      %t\n" (fun _ -> gen_goto state (Term sym))
   ;;
 
   let gen_action state lookahead = function
@@ -157,14 +171,17 @@ module Run (S : Settings) (I : Input) = struct
     | Reduce (i, j) ->
       if S.comments then Format.fprintf I.f "    (* Reduce *)\n";
       let group = List.nth (state.s_kernel @ state.s_closure) i in
-      let item = List.nth group.g_items j in
+      let n = List.length group.g_prefix
+      and item = List.nth group.g_items j in
       Format.fprintf I.f "    %t->\n" (fun _ -> gen_token_pats lookahead);
-      Format.fprintf I.f "      let x =%t in\n" (fun _ -> gen_action_call group item);
-      Format.fprintf I.f "      %t x\n" (fun _ -> gen_cont_id group i)
+      Format.fprintf I.f "      let x =%t\n" (fun _ -> gen_action_call group item);
+      Format.fprintf I.f "      and loc = reduce_loc ~loc %d in\n" n;
+      Format.fprintf I.f "      %t ~loc x\n" (fun _ -> gen_cont_id group i)
   ;;
 
   let gen_state_sig id state =
     gen_state_id id;
+    Format.fprintf I.f " ~loc";
     gen_arg_ids (List.hd state.s_kernel).g_prefix;
     gen_cont_ids (fun _ -> true) state.s_kernel;
     Format.fprintf I.f " =\n"
@@ -222,6 +239,7 @@ module Run (S : Settings) (I : Input) = struct
       | None -> Format.fprintf I.f " _"
     in
     gen_semantic_action_id action id;
+    Format.fprintf I.f " ~loc:_loc";
     List.iter2 f (List.rev item.i_suffix) (List.rev action.sa_args);
     Format.fprintf I.f " () = %s" (String.trim action.sa_code)
   ;;
@@ -242,9 +260,9 @@ module Run (S : Settings) (I : Input) = struct
   ;;
 
   let gen_entry (symbol, id) =
-    Format.fprintf I.f "let %s lexbuf lexfun =\n" (symbol_name (NTerm symbol));
+    Format.fprintf I.f "let %s lexfun lexbuf =\n" (symbol_name (NTerm symbol));
     Format.fprintf I.f "  States.setup lexfun lexbuf;\n";
-    Format.fprintf I.f "  States.%t (fun x -> x)\n" (fun _ -> gen_state_id id);
+    Format.fprintf I.f "  States.%t ~loc:[] (fun x -> x)\n" (fun _ -> gen_state_id id);
     Format.fprintf I.f ";;\n"
   ;;
 

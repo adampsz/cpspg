@@ -74,9 +74,9 @@ and tag depth buf = parse
   | "->" as c { Buffer.add_string buf c; tag depth buf lexbuf }
   | '>' as c  { if depth > 0 then (Buffer.add_char buf c; tag depth buf lexbuf) }
   
-  | newline   { new_line lexbuf; tag depth buf lexbuf }
-  | eof       { failwith "unterminated type tag" }
-  | _ as c    { Buffer.add_char buf c; tag depth buf lexbuf }
+  | newline as c { new_line lexbuf; Buffer.add_string buf c; tag depth buf lexbuf }
+  | eof          { failwith "unterminated type tag" }
+  | _ as c       { Buffer.add_char buf c; tag depth buf lexbuf }
 
 and code head depth buf = parse
   | ['[' '(' '{'] as c { Buffer.add_char buf c; code head (depth + 1) buf lexbuf }
@@ -85,11 +85,14 @@ and code head depth buf = parse
   | '}' as c  { if depth > 0 || head = true then (Buffer.add_char buf c; code head (depth - 1) buf lexbuf) }
   | "%}" as c { if depth > 0 || head = false then (Buffer.add_string buf c; code head (depth - 1) buf lexbuf) }
 
+  (* TODO: Proper location handling *)
+  | "$loc" { Buffer.add_string buf "(List.hd _loc)"; code head depth buf lexbuf }
+
   | '"' as c { Buffer.add_char buf c; string buf lexbuf; Buffer.add_char buf c; code head depth buf lexbuf }
 
-  | newline { new_line lexbuf; code head depth buf lexbuf }
-  | eof     { failwith "unterminated code" }
-  | _ as c  { Buffer.add_char buf c; code head depth buf lexbuf }
+  | newline as c { new_line lexbuf; Buffer.add_string buf c; code head depth buf lexbuf }
+  | eof          { failwith "unterminated code" }
+  | _ as c       { Buffer.add_char buf c; code head depth buf lexbuf }
 
 and string buf = parse
   | "\\\\" as c { Buffer.add_string buf c; string buf lexbuf }

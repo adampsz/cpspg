@@ -3,14 +3,15 @@ let source_name = ref None
 let output_name = ref None
 let output_automaton = ref None
 let grammar_kind = ref Cpspg.AutomatonGen.LALR
-let codegen_comment = ref false
-let codegen_readable_ids = ref false
+let codegen_locations = ref true
 let codegen_line_directives = ref true
+let codegen_positions = ref false
+let codegen_readable_ids = ref false
 
 let codegen_readable () =
+  codegen_line_directives := false;
   codegen_readable_ids := true;
-  codegen_comment := true;
-  codegen_line_directives := false
+  codegen_positions := true
 ;;
 
 let specs =
@@ -34,17 +35,20 @@ let specs =
     , Arg.Unit (fun _ -> grammar_kind := Cpspg.AutomatonGen.LALR)
     , "Construct a LALR(1) automaton (default)" )
     (* Codegen options *)
+  ; ( "--no-positions"
+    , Arg.Unit (fun _ -> codegen_positions := false)
+    , "Disable $loc family of keywords and related code" )
+  ; ( "--no-line-directives"
+    , Arg.Unit (fun _ -> codegen_line_directives := false)
+    , "Do not include line directives in generated code" )
+  ; "--comment", Arg.Set codegen_positions, "Include comments in the generated code"
+  ; ( "--readable-ids"
+    , Arg.Set codegen_readable_ids
+    , "Make identifiers in generated code longer" )
   ; ( "--readable"
     , Arg.Unit codegen_readable
     , "Make generated code more readable (implies --comment, --readable-ids and \
        --no-line-directives)" )
-  ; "--comment", Arg.Set codegen_comment, "Include comments in the generated code"
-  ; ( "--readable-ids"
-    , Arg.Set codegen_readable_ids
-    , "Make identifiers in generated code longer" )
-  ; ( "--no-line-directives"
-    , Arg.Unit (fun _ -> codegen_line_directives := false)
-    , "Do not include line directives in generated code" )
   ]
   |> Arg.align
 ;;
@@ -84,9 +88,10 @@ let output_code (module A : Cpspg.AutomatonGen.Automaton) =
     | Some x -> Format.formatter_of_out_channel (open_out x)
   in
   let module Settings = struct
-    let comments = !codegen_comment
-    let readable_ids = !codegen_readable_ids
+    let positions = !codegen_locations
     let line_directives = !codegen_line_directives
+    let comments = !codegen_positions
+    let readable_ids = !codegen_readable_ids
   end
   in
   let module Input = struct
@@ -105,7 +110,7 @@ let main () =
     | None | Some "-" -> Lexing.from_channel stdin
     | Some x -> Lexing.from_channel (open_in x)
   in
-  let grammar = Cpspg.Parser.grammar lexbuf Cpspg.Lexer.main in
+  let grammar = Cpspg.Parser.grammar Cpspg.Lexer.main lexbuf in
   let conflicts = ref [] in
   (* Generate automaton *)
   let module Settings = struct
