@@ -27,6 +27,7 @@ type producer =
 
 type production =
   { prod : producer list
+  ; prec : tid option
   ; action : code
   }
 

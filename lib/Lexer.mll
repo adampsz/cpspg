@@ -49,6 +49,7 @@ rule main = parse
   | "%right"    { DRIGHT }
   | "%nonassoc" { DNONASSOC }
   | "%binary"   { DNONASSOC }
+  | "%prec"     { DPREC }
   | "%%"        { DSEP }
 
   | "%\\" { DSEP }

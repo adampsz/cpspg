@@ -5,14 +5,19 @@ module NTermMap = Map.Make (Automaton.Nonterminal)
 module Run (S : Types.Settings) (A : Types.Ast) : Types.Grammar = struct
   open Automaton
 
+  type prec_level =
+    | PrecTerm of Terminal.t
+    | PrecDummy of string
+
   let header = A.ast.header
   let term = Hashtbl.create 16
   let nterm = Hashtbl.create 16
+  let prec = Hashtbl.create 16
 
   (* Define terminals *)
   let _ =
     let iter_token ty name =
-      let info = { ti_name = name; ti_ty = ty } in
+      let info = { ti_name = name; ti_ty = ty; ti_prec = None } in
       Hashtbl.replace term name.data (Hashtbl.length term |> Terminal.of_int, info)
     in
     let iter_decl = function
@@ -45,6 +50,29 @@ module Run (S : Types.Settings) (A : Types.Ast) : Types.Grammar = struct
     List.iter iter_decl A.ast.decls
   ;;
 
+  (* Define precedence levels *)
+  let _ =
+    let iter_sym p sym =
+      let info, name =
+        match sym with
+        | Grammar.Term t -> Hashtbl.find_opt term t.data, t.data
+        | Grammar.NTerm n -> None, n.data
+      in
+      match info with
+      | None -> Hashtbl.replace prec (PrecDummy name) p
+      | Some (id, info) ->
+        Hashtbl.replace prec (PrecTerm id) p;
+        Hashtbl.replace term name (id, { info with ti_prec = Some p })
+    in
+    let iter i = function
+      | Grammar.DeclLeft xs -> List.iter (iter_sym ((i * 2) + 1, i * 2)) xs
+      | Grammar.DeclRight xs -> List.iter (iter_sym (i * 2, (i * 2) + 1)) xs
+      | Grammar.DeclNonassoc xs -> List.iter (iter_sym (i * 2, i * 2)) xs
+      | _ -> ()
+    in
+    List.iteri iter A.ast.decls
+  ;;
+
   let symbols =
     let term = Hashtbl.to_seq_values term |> Seq.map (fun (t, _) -> Term t)
     and nterm = Hashtbl.to_seq_values nterm |> Seq.map (fun (n, _) -> NTerm n) in
@@ -58,7 +86,22 @@ module Run (S : Types.Settings) (A : Types.Ast) : Types.Grammar = struct
 
   let tr_symbols p = List.map (fun p -> tr_symbol p.Grammar.actual) p.Grammar.prod
 
-  and tr_action p symbol index =
+  let get_precedence symbols p =
+    let sym_prec p =
+      match Hashtbl.find_opt term p.data with
+      | Some (id, _) -> Hashtbl.find prec (PrecTerm id)
+      | None -> Hashtbl.find prec (PrecDummy p.data)
+    in
+    let fold sym acc =
+      match sym, acc with
+      | _, Some prec -> Some prec
+      | Term t, None -> Hashtbl.find_opt prec (PrecTerm t)
+      | NTerm _, None -> None
+    in
+    List.fold_right fold symbols (Option.map sym_prec p)
+  ;;
+
+  let tr_action p symbol index =
     let id = function
       | { Grammar.id = None; Grammar.actual = Grammar.NTerm name; _ } -> Some name.data
       | { Grammar.id = Some id; _ } -> Some id.data
@@ -73,7 +116,9 @@ module Run (S : Types.Settings) (A : Types.Ast) : Types.Grammar = struct
       created action in `actions` and add item to `items`. *)
   let fold_prod symbol (actions, items, i) prod =
     let action, id = tr_action prod symbol i, IntMap.cardinal actions + 1 in
-    let item = { i_suffix = tr_symbols prod; i_action = id } in
+    let suffix = tr_symbols prod in
+    let prec = get_precedence suffix prod.prec in
+    let item = { i_suffix = suffix; i_action = id; i_prec = prec } in
     IntMap.add id action actions, item :: items, i + 1
   ;;
 
@@ -85,10 +130,8 @@ module Run (S : Types.Settings) (A : Types.Ast) : Types.Grammar = struct
     let prods = List.sort compare_prod_length rule.Grammar.prods in
     let g_symbol = fst (Hashtbl.find nterm rule.Grammar.id.data)
     and g_lookahead = TermSet.empty in
-    let actions, g_items, _ =
-      List.fold_left (fold_prod g_symbol) (actions, [], 0) prods
-    in
-    let g_items = List.rev g_items in
+    let actions, items, _ = List.fold_left (fold_prod g_symbol) (actions, [], 0) prods in
+    let g_items = List.rev items in
     let group = { g_symbol; g_prefix = []; g_items; g_lookahead; g_starting = false } in
     actions, NTermMap.add group.g_symbol group groups
   ;;

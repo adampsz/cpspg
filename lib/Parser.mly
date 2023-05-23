@@ -1,13 +1,15 @@
 %{
-    open Grammar
 
-    let mknode ~loc data = { loc; data }
+open Grammar
+
+let mknode ~loc data = { loc; data }
+
 %}
 
 %start<Grammar.t> grammar
 
 %token<string> ID TID TYPE CODE
-%token DTOKEN DTYPE DSTART DLEFT DRIGHT DNONASSOC DSEP
+%token DTOKEN DTYPE DSTART DLEFT DRIGHT DNONASSOC DPREC DSEP
 %token COLON SEMI BAR EQ
 %token EOF
 
@@ -53,7 +55,12 @@ productions:
 ;
 
 production:
-    | prod=producers action=code { { prod; action } }
+    | prod=producers prec=production_prec action=code { { prod; prec; action } }
+;
+
+production_prec:
+    | (* empty *) { None }
+    | DPREC x=tid { Some x }
 ;
 
 producers:

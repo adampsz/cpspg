@@ -47,10 +47,13 @@ type symbol = Symbol.t =
   | Term of Terminal.t
   | NTerm of Nonterminal.t
 
+type prec = int * int
+
 (** Suffix of LR(0)/LR(1) *)
 type item =
   { i_suffix : symbol list
   ; i_action : int (** Production/semantic action id *)
+  ; i_prec : prec option
   }
 
 (** Group of LR(0)/LR(1) items with common nonterminal and prefix.
@@ -90,6 +93,7 @@ type state =
 type term_info =
   { ti_name : string node
   ; ti_ty : string node option
+  ; ti_prec : prec option
   }
 
 type nterm_info =
@@ -158,7 +162,9 @@ let shift_state symbol state =
     Some { s_kernel = kernel; s_closure = []; s_goto = SymbolMap.empty; s_action = [] }
 ;;
 
-let item_of_starting_symbol symbol = { i_suffix = [ NTerm symbol ]; i_action = 0 }
+let item_of_starting_symbol symbol =
+  { i_suffix = [ NTerm symbol ]; i_action = 0; i_prec = None }
+;;
 
 let group_of_starting_symbol symbol =
   let g_items = [ item_of_starting_symbol symbol ]

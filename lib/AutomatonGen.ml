@@ -264,43 +264,75 @@ module Run (S : Types.Settings) (G : Types.Grammar) : Types.Automaton = struct
       fun g -> g.g_lookahead
   ;;
 
-  let check_conflicts id actions =
-    let map = Hashtbl.create 32 in
-    let add_action action symbol =
-      let actions = Hashtbl.find_opt map symbol |> Option.value ~default:[] in
-      Hashtbl.replace map symbol (action :: actions)
-    and check_conflict sym = function
-      | [] | [ _ ] -> ()
-      | actions -> S.on_conflict id sym actions
+  let resolve_conflict id sym actions =
+    let cmp l r =
+      match l, r with
+      | Some (_, l), Some (r, _) -> r - l
+      | _, _ -> 0
     in
-    List.iter (fun (s, m) -> TermSet.iter (add_action m) s) actions;
-    Hashtbl.iter check_conflict map
+    let prec = (G.term sym).ti_prec in
+    let filter f (p, a) = if a <> Shift && f (cmp prec p) 0 then Some a else None in
+    (* Shift *)
+    let shift = List.find_map (fun (_, a) -> if a = Shift then Some a else None) actions
+    (* Reductions with precedence higher than shift *)
+    and high = List.filter_map (filter ( > )) actions
+    (* Reductions with precedence same as shift *)
+    and equal = List.filter_map (filter ( = )) actions
+    (* Reductions with precedence lower than shift *)
+    and low = List.filter_map (filter ( < )) actions in
+    match shift, high, equal, low with
+    (* Single shift *)
+    | Some shift, [], [], [] -> [ shift ]
+    (* Single reducion *)
+    | None, [], [ action ], [] -> [ action ]
+    (* One reduction with precedence higher than shift *)
+    | Some _, [ action ], [], [] -> [ action ]
+    (* Many reductions with precedence lower than shift *)
+    | Some shift, [], [], _ -> [ shift ]
+    (* Conflict *)
+    | _, _, _, _ ->
+      let actions = List.map snd actions in
+      S.on_conflict id sym actions;
+      actions
   ;;
 
-  let determine_actions state =
-    let add_reduce (i, actions) g =
-      let f (j, actions) = function
-        | { i_suffix = []; _ } -> j + 1, (lookahead g, Reduce (i, j)) :: actions
-        | _ -> j + 1, actions
-      in
-      let _, actions = List.fold_left f (0, actions) g.g_items in
-      i + 1, actions
-    and add_shift actions s =
-      let f = function
-        | NTerm _, _ -> None
-        | Term t, _ -> Some t
-      in
-      let lookahead = SymbolMap.to_seq s.s_goto |> Seq.filter_map f |> TermSet.of_seq in
-      if TermSet.is_empty lookahead then actions else (lookahead, Shift) :: actions
+  let get_actions state =
+    let actions = Hashtbl.create 16 in
+    let register prec action sym =
+      let xs = Hashtbl.find_opt actions sym |> Option.value ~default:[] in
+      Hashtbl.replace actions sym ((prec, action) :: xs)
     in
-    let closure = state.s_kernel @ state.s_closure in
-    List.fold_left add_reduce (0, add_shift [] state) closure |> snd
+    let iter_item lookahead i j item =
+      if item.i_suffix = []
+      then TermSet.iter (register item.i_prec (Reduce (i, j))) lookahead
+    in
+    let iter_group i group =
+      let lookahead = lookahead group in
+      List.iteri (iter_item lookahead i) group.g_items
+    and iter_goto sym _ =
+      match sym with
+      | Term t -> register (G.term t).ti_prec Shift t
+      | NTerm _ -> ()
+    in
+    List.iteri iter_group (state.s_kernel @ state.s_closure);
+    SymbolMap.iter iter_goto state.s_goto;
+    actions
+  ;;
+
+  let pack_actions id actions =
+    let packed = Hashtbl.create 16 in
+    let register sym action =
+      let xs = Hashtbl.find_opt packed action |> Option.value ~default:TermSet.empty in
+      Hashtbl.replace packed action (TermSet.add sym xs)
+    in
+    let iter sym actions = resolve_conflict id sym actions |> List.iter (register sym) in
+    Hashtbl.iter iter actions;
+    Hashtbl.to_seq packed |> Seq.map (fun (a, s) -> s, a) |> List.of_seq
   ;;
 
   let attach_actions id =
     let state = Hashtbl.find states id in
-    let action = determine_actions state in
-    check_conflicts id action;
+    let action = get_actions state |> pack_actions id in
     Hashtbl.replace states id { state with s_action = action }
   ;;
 

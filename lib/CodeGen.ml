@@ -92,11 +92,14 @@ struct
     else Format.fprintf f "a%d" idx
   ;;
 
+  (* Continuations are prefixed with underscore because
+     precedence declarations could make them unused
+     (see unary minus in `calc/ParserPres.mly`) *)
   let write_cont_id f group idx =
     match S.readable_ids, group.g_starting with
-    | false, _ -> Format.fprintf f "c%d" idx
-    | true, false -> Format.fprintf f "c%d_%s" idx (nterm_name group.g_symbol)
-    | true, true -> Format.fprintf f "c%d_%s_starting" idx (nterm_name group.g_symbol)
+    | false, _ -> Format.fprintf f "_c%d" idx
+    | true, false -> Format.fprintf f "_c%d_%s" idx (nterm_name group.g_symbol)
+    | true, true -> Format.fprintf f "_c%d_%s_starting" idx (nterm_name group.g_symbol)
   ;;
 
   let write_semantic_action_id f action idx =
@@ -209,9 +212,9 @@ struct
   ;;
 
   let write_term_cons f = function
-    | { ti_name; ti_ty = None } ->
+    | { ti_name; ti_ty = None; _ } ->
       Format.fprintf f "  | %t\n" (fun f -> write_string f ti_name)
-    | { ti_name; ti_ty = Some ty } ->
+    | { ti_name; ti_ty = Some ty; _ } ->
       Format.fprintf
         f
         "  | %t of (%t)\n"

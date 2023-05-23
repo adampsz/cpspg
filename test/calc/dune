@@ -5,7 +5,16 @@
 (ocamllex Lexer)
 
 (rule
- (deps Parser.mly)
- (target Parser.ml)
+ (copy ParserPrec.ml Parser.ml))
+
+(rule
+ (deps ParserBase.mly)
+ (target ParserBase.ml)
+ (action
+  (run cpspg -o %{target} %{deps})))
+
+(rule
+ (deps ParserPrec.mly)
+ (target ParserPrec.ml)
  (action
   (run cpspg -o %{target} %{deps})))
