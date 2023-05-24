@@ -59,8 +59,8 @@ production:
 ;
 
 production_prec:
-    | (* empty *) { None }
-    | DPREC x=tid { Some x }
+    | (* empty *)    { None }
+    | DPREC x=symbol { Some x }
 ;
 
 producers:

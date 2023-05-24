@@ -1,12 +1,14 @@
 module Terminal : sig
   type t
 
+  val dummy : t
   val compare : t -> t -> int
   val of_int : int -> t
   val to_int : t -> int
 end = struct
   type t = int
 
+  let dummy = -1
   let compare = ( - )
   let of_int x = x
   let to_int x = x
@@ -38,8 +40,10 @@ module SymbolMap = Map.Make (Symbol)
 module TermSet = Set.Make (Terminal)
 module IntMap = Map.Make (Int)
 
+type loc = Grammar.loc
+
 type 'a node = 'a Grammar.node =
-  { loc : Lexing.position * Lexing.position
+  { loc : loc
   ; data : 'a
   }
 
@@ -163,7 +167,7 @@ let shift_state symbol state =
 ;;
 
 let item_of_starting_symbol symbol =
-  { i_suffix = [ NTerm symbol ]; i_action = 0; i_prec = None }
+  { i_suffix = [ NTerm symbol ]; i_action = -1; i_prec = None }
 ;;
 
 let group_of_starting_symbol symbol =

@@ -1,5 +1,7 @@
+type loc = Lexing.position * Lexing.position
+
 type 'a node =
-  { loc : Lexing.position * Lexing.position
+  { loc : loc
   ; data : 'a
   }
 
@@ -27,7 +29,7 @@ type producer =
 
 type production =
   { prod : producer list
-  ; prec : tid option
+  ; prec : symbol option
   ; action : code
   }
 

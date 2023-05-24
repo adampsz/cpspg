@@ -154,7 +154,7 @@ struct
   ;;
 
   let write_semantic_action_call f group = function
-    | { i_action = 0; _ } ->
+    | { i_action = -1; _ } ->
       assert (List.length group.g_prefix = 1);
       write_arg_ids f group.g_prefix
     | { i_action; _ } ->

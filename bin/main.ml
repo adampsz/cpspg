@@ -54,21 +54,6 @@ let specs =
 
 let _ = Arg.parse specs (fun x -> source_name := Some x) usage
 
-let print_conflicts term conflicts =
-  let iter (id, sym, actions) =
-    let sym = (term sym).Cpspg.Automaton.ti_name in
-    Format.eprintf "Conflict in state %d on symbol %s:\n" id sym.data;
-    let f = function
-      | Cpspg.Automaton.Shift -> Format.eprintf "  - shift\n"
-      | Cpspg.Automaton.Reduce (i, j) ->
-        Format.eprintf "  - reduce item %d in group %d\n" i j
-    in
-    List.iter f actions;
-    Format.eprintf "%!"
-  in
-  List.iter iter conflicts
-;;
-
 let main () =
   let input, input_name =
     match !source_name with
@@ -83,11 +68,17 @@ let main () =
   (* Settings *)
   let module Settings = struct
     let kind = !grammar_kind
+
+    (* Codegen *)
     let positions = !codegen_comments
     let line_directives = !codegen_line_directives
     let comments = !codegen_comments
     let readable_ids = !codegen_readable_ids
-    let on_conflict id sym actions = conflicts := (id, sym, actions) :: !conflicts
+
+    (* Reporting *)
+    let report_err ~loc = Format.kdprintf (Warning.report_err ~loc:(fst loc))
+    let report_warn ~loc = Format.kdprintf (Warning.report_warn ~loc:(fst loc))
+    let report_conflict id sym actions = conflicts := (id, sym, actions) :: !conflicts
   end
   in
   (* First pass: parse grammar definition *)
@@ -101,12 +92,12 @@ let main () =
   let module Grammar = Cpspg.GrammarGen.Run (Settings) (Ast) in
   (* Third pass: create LR automaton *)
   let module Automaton = Cpspg.AutomatonGen.Run (Settings) (Grammar) in
+  Warning.report_conflicts (module Grammar) (module Automaton) !conflicts;
   (* Fourth pass: initialize code generation *)
   let module Code = Cpspg.CodeGen.Make (Settings) (Grammar) (Automaton) in
   let module Graphviz = Cpspg.Graphviz.Make (Grammar) in
   (* Final work *)
-  Code.write (Format.formatter_of_out_channel output);
-  print_conflicts Grammar.term !conflicts
+  Code.write (Format.formatter_of_out_channel output)
 ;;
 
 let _ =

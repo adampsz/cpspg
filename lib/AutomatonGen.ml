@@ -64,7 +64,8 @@ end = struct
     | Term t as s -> s, TermSet.singleton t
   ;;
 
-  let first = List.to_seq G.symbols |> Seq.map init |> SymbolMap.of_seq
+  let dummy = Term Terminal.dummy
+  let first = List.to_seq (dummy :: G.symbols) |> Seq.map init |> SymbolMap.of_seq
   let first = loop first
   let first sym = SymbolMap.find_opt sym first |> Option.value ~default:TermSet.empty
 end
@@ -109,7 +110,8 @@ end = struct
   ;;
 
   let init s = s, TermSet.empty
-  let follow = List.to_seq G.symbols |> Seq.map init |> SymbolMap.of_seq
+  let dummy = Term Terminal.dummy
+  let follow = List.to_seq (dummy :: G.symbols) |> Seq.map init |> SymbolMap.of_seq
   let follow = loop follow
   let follow sym = SymbolMap.find_opt sym follow |> Option.value ~default:TermSet.empty
 end
@@ -284,7 +286,7 @@ module Run (S : Types.Settings) (G : Types.Grammar) : Types.Automaton = struct
     (* Single shift *)
     | Some shift, [], [], [] -> [ shift ]
     (* Single reducion *)
-    | None, [], [ action ], [] -> [ action ]
+    | None, [], [ action ], [] | None, [ action ], [], [] -> [ action ]
     (* One reduction with precedence higher than shift *)
     | Some _, [ action ], [], [] -> [ action ]
     (* Many reductions with precedence lower than shift *)
@@ -292,7 +294,7 @@ module Run (S : Types.Settings) (G : Types.Grammar) : Types.Automaton = struct
     (* Conflict *)
     | _, _, _, _ ->
       let actions = List.map snd actions in
-      S.on_conflict id sym actions;
+      S.report_conflict id sym actions;
       actions
   ;;
 
