@@ -223,12 +223,14 @@ struct
   ;;
 
   let write_term_type f symbols =
-    let gen_variant = function
-      | NTerm _ -> ()
-      | Term t -> write_term_cons f (G.term t)
-    in
+    let get_info = function
+      | NTerm _ -> None
+      | Term t -> Some (G.term t)
+    and cmp a b = String.compare b.ti_name.data a.ti_name.data in
+    let infos = List.filter_map get_info symbols in
+    let infos = List.fast_sort cmp infos in
     Format.fprintf f "type token =\n";
-    List.iter gen_variant symbols;
+    List.iter (write_term_cons f) infos;
     Format.fprintf f "\n"
   ;;
 
@@ -303,9 +305,14 @@ struct
       Format.fprintf f "  %s %t%s" pre (fun f -> write_state f id s) post
     and write_entry f (nt, s) = write_entry f nt s
     and state_letrec = letrec ~post:"\n" ~post':"  ;;\n" in
+    (* -unused-rec-flag due continuations always being mutually recursive, while often they don't need to *)
+    (* FIXME: should we include -redunant-{case, subpat}? They trigger warnings
+       in grammars with unresolved conflicts, but maybe it's a good thing? *)
     Format.fprintf
       f
-      "[@@@@@@warning \"-unused-rec-flag\"]\n\n\
+      "[@@@@@@warning \"-unused-rec-flag\"]\n\
+       [@@@@@@warning \"-redundant-case\"]\n\
+       [@@@@@@warning \"-redundant-subpat\"]\n\n\
        %t\n\n\
        %tmodule Actions = struct\n\
        %tend\n\n\

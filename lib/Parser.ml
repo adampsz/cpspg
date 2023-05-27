@@ -1,27 +1,29 @@
 [@@@warning "-unused-rec-flag"]
+[@@@warning "-redundant-case"]
+[@@@warning "-redundant-subpat"]
 
 open Grammar
 
 let mknode ~loc data = { loc; data }
 
 type token =
-  | ID of (string)
-  | TID of (string)
   | TYPE of (string)
-  | CODE of (string)
-  | DTOKEN
-  | DTYPE
-  | DSTART
-  | DLEFT
-  | DRIGHT
-  | DNONASSOC
-  | DPREC
-  | DSEP
-  | COLON
+  | TID of (string)
   | SEMI
-  | BAR
+  | ID of (string)
   | EQ
   | EOF
+  | DTYPE
+  | DTOKEN
+  | DSTART
+  | DSEP
+  | DRIGHT
+  | DPREC
+  | DNONASSOC
+  | DLEFT
+  | COLON
+  | CODE of (string)
+  | BAR
 
 module Actions = struct
   let a0_grammar ~loc:_loc rules decls header () = { header; decls; rules }
@@ -103,7 +105,7 @@ module States = struct
 
   (* ITEMS:
        grammar' → . code decls DSEP rules EOF
-       code → . CODE /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       code → . CODE 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
      GOTO:
        CODE -> 1
        code -> 2
@@ -119,7 +121,7 @@ module States = struct
     | _ -> raise (Failure "error in state 0")
 
   (* ITEMS:
-       code → CODE . /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP /SEMI /BAR
+       code → CODE . 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP, SEMI, BAR
      GOTO:
        
      ACTION:
@@ -135,16 +137,16 @@ module States = struct
 
   (* ITEMS:
        grammar' → code . decls DSEP rules EOF
-       decls → . decl decls /DSEP
-       decls → . /DSEP
-       decl → . DTOKEN tp tids /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-       decl → . DSTART tp ids /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-       decl → . DTYPE tp symbols /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-       decl → . DTOKEN tids /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-       decl → . DSTART ids /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-       decl → . DLEFT symbols /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-       decl → . DRIGHT symbols /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-       decl → . DNONASSOC symbols /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       decls → . decl decls 		/ DSEP
+       decls → . 		/ DSEP
+       decl → . DTOKEN tp tids 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
+       decl → . DSTART tp ids 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
+       decl → . DTYPE tp symbols 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
+       decl → . DTOKEN tids 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
+       decl → . DSTART ids 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
+       decl → . DLEFT symbols 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
+       decl → . DRIGHT symbols 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
+       decl → . DNONASSOC symbols 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
      GOTO:
        DTOKEN -> 3
        DTYPE -> 11
@@ -193,12 +195,12 @@ module States = struct
     | _ -> raise (Failure "error in state 2")
 
   (* ITEMS:
-       decl → DTOKEN . tp tids /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-       decl → DTOKEN . tids /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-       tids → . tid tids /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-       tids → . /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-       tid → . TID /TID /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-       tp → . TYPE /TID /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       decl → DTOKEN . tp tids 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
+       decl → DTOKEN . tids 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
+       tids → . tid tids 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
+       tids → . 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
+       tid → . TID 		/ TID, DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
+       tp → . TYPE 		/ TID, DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
      GOTO:
        TID -> 4
        TYPE -> 5
@@ -229,7 +231,7 @@ module States = struct
     | _ -> raise (Failure "error in state 3")
 
   (* ITEMS:
-       tid → TID . /ID /TID /CODE /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DPREC /DSEP
+       tid → TID . 		/ ID, TID, CODE, DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DPREC, DSEP
      GOTO:
        
      ACTION:
@@ -244,7 +246,7 @@ module States = struct
     | _ -> raise (Failure "error in state 4")
 
   (* ITEMS:
-       tp → TYPE . /ID /TID /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       tp → TYPE . 		/ ID, TID, DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
      GOTO:
        
      ACTION:
@@ -259,7 +261,7 @@ module States = struct
     | _ -> raise (Failure "error in state 5")
 
   (* ITEMS:
-       decl → DTOKEN tids . /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       decl → DTOKEN tids . 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
      GOTO:
        
      ACTION:
@@ -274,10 +276,10 @@ module States = struct
     | _ -> raise (Failure "error in state 6")
 
   (* ITEMS:
-       tids → tid . tids /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-       tids → . tid tids /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-       tids → . /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-       tid → . TID /TID /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       tids → tid . tids 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
+       tids → . tid tids 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
+       tids → . 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
+       tid → . TID 		/ TID, DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
      GOTO:
        TID -> 4
        tids -> 8
@@ -301,7 +303,7 @@ module States = struct
     | _ -> raise (Failure "error in state 7")
 
   (* ITEMS:
-       tids → tid tids . /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       tids → tid tids . 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
      GOTO:
        
      ACTION:
@@ -316,10 +318,10 @@ module States = struct
     | _ -> raise (Failure "error in state 8")
 
   (* ITEMS:
-       decl → DTOKEN tp . tids /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-       tids → . tid tids /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-       tids → . /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-       tid → . TID /TID /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       decl → DTOKEN tp . tids 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
+       tids → . tid tids 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
+       tids → . 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
+       tid → . TID 		/ TID, DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
      GOTO:
        TID -> 4
        tids -> 10
@@ -343,7 +345,7 @@ module States = struct
     | _ -> raise (Failure "error in state 9")
 
   (* ITEMS:
-       decl → DTOKEN tp tids . /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       decl → DTOKEN tp tids . 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
      GOTO:
        
      ACTION:
@@ -358,8 +360,8 @@ module States = struct
     | _ -> raise (Failure "error in state 10")
 
   (* ITEMS:
-       decl → DTYPE . tp symbols /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-       tp → . TYPE /ID /TID /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       decl → DTYPE . tp symbols 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
+       tp → . TYPE 		/ ID, TID, DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
      GOTO:
        TYPE -> 5
        tp -> 12
@@ -375,13 +377,13 @@ module States = struct
     | _ -> raise (Failure "error in state 11")
 
   (* ITEMS:
-       decl → DTYPE tp . symbols /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-       symbols → . symbol symbols /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-       symbols → . /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-       symbol → . id /ID /TID /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-       symbol → . tid /ID /TID /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-       id → . ID /ID /TID /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-       tid → . TID /ID /TID /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       decl → DTYPE tp . symbols 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
+       symbols → . symbol symbols 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
+       symbols → . 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
+       symbol → . id 		/ ID, TID, DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
+       symbol → . tid 		/ ID, TID, DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
+       id → . ID 		/ ID, TID, DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
+       tid → . TID 		/ ID, TID, DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
      GOTO:
        ID -> 13
        TID -> 4
@@ -414,7 +416,7 @@ module States = struct
     | _ -> raise (Failure "error in state 12")
 
   (* ITEMS:
-       id → ID . /ID /TID /CODE /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DPREC /DSEP /COLON /EQ
+       id → ID . 		/ ID, TID, CODE, DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DPREC, DSEP, COLON, EQ
      GOTO:
        
      ACTION:
@@ -429,7 +431,7 @@ module States = struct
     | _ -> raise (Failure "error in state 13")
 
   (* ITEMS:
-       decl → DTYPE tp symbols . /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       decl → DTYPE tp symbols . 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
      GOTO:
        
      ACTION:
@@ -444,13 +446,13 @@ module States = struct
     | _ -> raise (Failure "error in state 14")
 
   (* ITEMS:
-       symbols → symbol . symbols /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-       symbols → . symbol symbols /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-       symbols → . /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-       symbol → . id /ID /TID /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-       symbol → . tid /ID /TID /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-       id → . ID /ID /TID /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-       tid → . TID /ID /TID /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       symbols → symbol . symbols 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
+       symbols → . symbol symbols 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
+       symbols → . 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
+       symbol → . id 		/ ID, TID, DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
+       symbol → . tid 		/ ID, TID, DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
+       id → . ID 		/ ID, TID, DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
+       tid → . TID 		/ ID, TID, DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
      GOTO:
        ID -> 13
        TID -> 4
@@ -483,7 +485,7 @@ module States = struct
     | _ -> raise (Failure "error in state 15")
 
   (* ITEMS:
-       symbols → symbol symbols . /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       symbols → symbol symbols . 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
      GOTO:
        
      ACTION:
@@ -498,7 +500,7 @@ module States = struct
     | _ -> raise (Failure "error in state 16")
 
   (* ITEMS:
-       symbol → id . /ID /TID /CODE /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DPREC /DSEP
+       symbol → id . 		/ ID, TID, CODE, DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DPREC, DSEP
      GOTO:
        
      ACTION:
@@ -513,7 +515,7 @@ module States = struct
     | _ -> raise (Failure "error in state 17")
 
   (* ITEMS:
-       symbol → tid . /ID /TID /CODE /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DPREC /DSEP
+       symbol → tid . 		/ ID, TID, CODE, DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DPREC, DSEP
      GOTO:
        
      ACTION:
@@ -528,12 +530,12 @@ module States = struct
     | _ -> raise (Failure "error in state 18")
 
   (* ITEMS:
-       decl → DSTART . tp ids /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-       decl → DSTART . ids /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-       ids → . id ids /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-       ids → . /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-       id → . ID /ID /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-       tp → . TYPE /ID /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       decl → DSTART . tp ids 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
+       decl → DSTART . ids 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
+       ids → . id ids 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
+       ids → . 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
+       id → . ID 		/ ID, DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
+       tp → . TYPE 		/ ID, DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
      GOTO:
        ID -> 13
        TYPE -> 5
@@ -564,7 +566,7 @@ module States = struct
     | _ -> raise (Failure "error in state 19")
 
   (* ITEMS:
-       decl → DSTART ids . /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       decl → DSTART ids . 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
      GOTO:
        
      ACTION:
@@ -579,10 +581,10 @@ module States = struct
     | _ -> raise (Failure "error in state 20")
 
   (* ITEMS:
-       ids → id . ids /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-       ids → . id ids /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-       ids → . /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-       id → . ID /ID /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       ids → id . ids 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
+       ids → . id ids 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
+       ids → . 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
+       id → . ID 		/ ID, DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
      GOTO:
        ID -> 13
        ids -> 22
@@ -606,7 +608,7 @@ module States = struct
     | _ -> raise (Failure "error in state 21")
 
   (* ITEMS:
-       ids → id ids . /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       ids → id ids . 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
      GOTO:
        
      ACTION:
@@ -621,10 +623,10 @@ module States = struct
     | _ -> raise (Failure "error in state 22")
 
   (* ITEMS:
-       decl → DSTART tp . ids /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-       ids → . id ids /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-       ids → . /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-       id → . ID /ID /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       decl → DSTART tp . ids 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
+       ids → . id ids 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
+       ids → . 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
+       id → . ID 		/ ID, DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
      GOTO:
        ID -> 13
        ids -> 24
@@ -648,7 +650,7 @@ module States = struct
     | _ -> raise (Failure "error in state 23")
 
   (* ITEMS:
-       decl → DSTART tp ids . /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       decl → DSTART tp ids . 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
      GOTO:
        
      ACTION:
@@ -663,13 +665,13 @@ module States = struct
     | _ -> raise (Failure "error in state 24")
 
   (* ITEMS:
-       decl → DLEFT . symbols /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-       symbols → . symbol symbols /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-       symbols → . /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-       symbol → . id /ID /TID /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-       symbol → . tid /ID /TID /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-       id → . ID /ID /TID /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-       tid → . TID /ID /TID /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       decl → DLEFT . symbols 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
+       symbols → . symbol symbols 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
+       symbols → . 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
+       symbol → . id 		/ ID, TID, DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
+       symbol → . tid 		/ ID, TID, DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
+       id → . ID 		/ ID, TID, DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
+       tid → . TID 		/ ID, TID, DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
      GOTO:
        ID -> 13
        TID -> 4
@@ -702,7 +704,7 @@ module States = struct
     | _ -> raise (Failure "error in state 25")
 
   (* ITEMS:
-       decl → DLEFT symbols . /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       decl → DLEFT symbols . 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
      GOTO:
        
      ACTION:
@@ -717,13 +719,13 @@ module States = struct
     | _ -> raise (Failure "error in state 26")
 
   (* ITEMS:
-       decl → DRIGHT . symbols /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-       symbols → . symbol symbols /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-       symbols → . /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-       symbol → . id /ID /TID /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-       symbol → . tid /ID /TID /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-       id → . ID /ID /TID /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-       tid → . TID /ID /TID /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       decl → DRIGHT . symbols 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
+       symbols → . symbol symbols 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
+       symbols → . 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
+       symbol → . id 		/ ID, TID, DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
+       symbol → . tid 		/ ID, TID, DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
+       id → . ID 		/ ID, TID, DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
+       tid → . TID 		/ ID, TID, DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
      GOTO:
        ID -> 13
        TID -> 4
@@ -756,7 +758,7 @@ module States = struct
     | _ -> raise (Failure "error in state 27")
 
   (* ITEMS:
-       decl → DRIGHT symbols . /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       decl → DRIGHT symbols . 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
      GOTO:
        
      ACTION:
@@ -771,13 +773,13 @@ module States = struct
     | _ -> raise (Failure "error in state 28")
 
   (* ITEMS:
-       decl → DNONASSOC . symbols /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-       symbols → . symbol symbols /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-       symbols → . /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-       symbol → . id /ID /TID /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-       symbol → . tid /ID /TID /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-       id → . ID /ID /TID /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-       tid → . TID /ID /TID /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       decl → DNONASSOC . symbols 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
+       symbols → . symbol symbols 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
+       symbols → . 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
+       symbol → . id 		/ ID, TID, DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
+       symbol → . tid 		/ ID, TID, DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
+       id → . ID 		/ ID, TID, DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
+       tid → . TID 		/ ID, TID, DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
      GOTO:
        ID -> 13
        TID -> 4
@@ -810,7 +812,7 @@ module States = struct
     | _ -> raise (Failure "error in state 29")
 
   (* ITEMS:
-       decl → DNONASSOC symbols . /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       decl → DNONASSOC symbols . 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
      GOTO:
        
      ACTION:
@@ -840,10 +842,10 @@ module States = struct
 
   (* ITEMS:
        grammar' → code decls DSEP . rules EOF
-       rules → . rule rules /EOF
-       rules → . /EOF
-       rule → . id COLON rule_prods SEMI /ID /EOF
-       id → . ID /COLON
+       rules → . rule rules 		/ EOF
+       rules → . 		/ EOF
+       rule → . id COLON rule_prods SEMI 		/ ID, EOF
+       id → . ID 		/ COLON
      GOTO:
        ID -> 13
        rules -> 33
@@ -894,11 +896,11 @@ module States = struct
     _c0_grammar_starting x
 
   (* ITEMS:
-       rules → rule . rules /EOF
-       rules → . rule rules /EOF
-       rules → . /EOF
-       rule → . id COLON rule_prods SEMI /ID /EOF
-       id → . ID /COLON
+       rules → rule . rules 		/ EOF
+       rules → . rule rules 		/ EOF
+       rules → . 		/ EOF
+       rule → . id COLON rule_prods SEMI 		/ ID, EOF
+       id → . ID 		/ COLON
      GOTO:
        ID -> 13
        rules -> 36
@@ -924,7 +926,7 @@ module States = struct
     | _ -> raise (Failure "error in state 35")
 
   (* ITEMS:
-       rules → rule rules . /EOF
+       rules → rule rules . 		/ EOF
      GOTO:
        
      ACTION:
@@ -939,7 +941,7 @@ module States = struct
     | _ -> raise (Failure "error in state 36")
 
   (* ITEMS:
-       rule → id . COLON rule_prods SEMI /ID /EOF
+       rule → id . COLON rule_prods SEMI 		/ ID, EOF
      GOTO:
        COLON -> 38
      ACTION:
@@ -953,20 +955,20 @@ module States = struct
     | _ -> raise (Failure "error in state 37")
 
   (* ITEMS:
-       rule → id COLON . rule_prods SEMI /ID /EOF
-       rule_prods → . production productions /SEMI
-       rule_prods → . productions /SEMI
-       productions → . BAR production productions /SEMI
-       productions → . /SEMI
-       production → . producers production_prec code /SEMI /BAR
-       producers → . producer producers /CODE /DPREC
-       producers → . /CODE /DPREC
-       producer → . id EQ symbol /ID /TID /CODE /DPREC
-       producer → . symbol /ID /TID /CODE /DPREC
-       symbol → . id /ID /TID /CODE /DPREC
-       symbol → . tid /ID /TID /CODE /DPREC
-       id → . ID /ID /TID /CODE /DPREC /EQ
-       tid → . TID /ID /TID /CODE /DPREC
+       rule → id COLON . rule_prods SEMI 		/ ID, EOF
+       rule_prods → . production productions 		/ SEMI
+       rule_prods → . productions 		/ SEMI
+       productions → . BAR production productions 		/ SEMI
+       productions → . 		/ SEMI
+       production → . producers production_prec code 		/ SEMI, BAR
+       producers → . producer producers 		/ CODE, DPREC
+       producers → . 		/ CODE, DPREC
+       producer → . id EQ symbol 		/ ID, TID, CODE, DPREC
+       producer → . symbol 		/ ID, TID, CODE, DPREC
+       symbol → . id 		/ ID, TID, CODE, DPREC
+       symbol → . tid 		/ ID, TID, CODE, DPREC
+       id → . ID 		/ ID, TID, CODE, DPREC, EQ
+       tid → . TID 		/ ID, TID, CODE, DPREC
      GOTO:
        ID -> 13
        TID -> 4
@@ -1018,16 +1020,16 @@ module States = struct
     | _ -> raise (Failure "error in state 38")
 
   (* ITEMS:
-       productions → BAR . production productions /SEMI
-       production → . producers production_prec code /SEMI /BAR
-       producers → . producer producers /CODE /DPREC
-       producers → . /CODE /DPREC
-       producer → . id EQ symbol /ID /TID /CODE /DPREC
-       producer → . symbol /ID /TID /CODE /DPREC
-       symbol → . id /ID /TID /CODE /DPREC
-       symbol → . tid /ID /TID /CODE /DPREC
-       id → . ID /ID /TID /CODE /DPREC /EQ
-       tid → . TID /ID /TID /CODE /DPREC
+       productions → BAR . production productions 		/ SEMI
+       production → . producers production_prec code 		/ SEMI, BAR
+       producers → . producer producers 		/ CODE, DPREC
+       producers → . 		/ CODE, DPREC
+       producer → . id EQ symbol 		/ ID, TID, CODE, DPREC
+       producer → . symbol 		/ ID, TID, CODE, DPREC
+       symbol → . id 		/ ID, TID, CODE, DPREC
+       symbol → . tid 		/ ID, TID, CODE, DPREC
+       id → . ID 		/ ID, TID, CODE, DPREC, EQ
+       tid → . TID 		/ ID, TID, CODE, DPREC
      GOTO:
        ID -> 13
        TID -> 4
@@ -1064,9 +1066,9 @@ module States = struct
     | _ -> raise (Failure "error in state 39")
 
   (* ITEMS:
-       productions → BAR production . productions /SEMI
-       productions → . BAR production productions /SEMI
-       productions → . /SEMI
+       productions → BAR production . productions 		/ SEMI
+       productions → . BAR production productions 		/ SEMI
+       productions → . 		/ SEMI
      GOTO:
        BAR -> 39
        productions -> 41
@@ -1088,7 +1090,7 @@ module States = struct
     | _ -> raise (Failure "error in state 40")
 
   (* ITEMS:
-       productions → BAR production productions . /SEMI
+       productions → BAR production productions . 		/ SEMI
      GOTO:
        
      ACTION:
@@ -1103,9 +1105,9 @@ module States = struct
     | _ -> raise (Failure "error in state 41")
 
   (* ITEMS:
-       production → producers . production_prec code /SEMI /BAR
-       production_prec → . DPREC symbol /CODE
-       production_prec → . /CODE
+       production → producers . production_prec code 		/ SEMI, BAR
+       production_prec → . DPREC symbol 		/ CODE
+       production_prec → . 		/ CODE
      GOTO:
        DPREC -> 43
        production_prec -> 45
@@ -1127,11 +1129,11 @@ module States = struct
     | _ -> raise (Failure "error in state 42")
 
   (* ITEMS:
-       production_prec → DPREC . symbol /CODE
-       symbol → . id /CODE
-       symbol → . tid /CODE
-       id → . ID /CODE
-       tid → . TID /CODE
+       production_prec → DPREC . symbol 		/ CODE
+       symbol → . id 		/ CODE
+       symbol → . tid 		/ CODE
+       id → . ID 		/ CODE
+       tid → . TID 		/ CODE
      GOTO:
        ID -> 13
        TID -> 4
@@ -1156,7 +1158,7 @@ module States = struct
     | _ -> raise (Failure "error in state 43")
 
   (* ITEMS:
-       production_prec → DPREC symbol . /CODE
+       production_prec → DPREC symbol . 		/ CODE
      GOTO:
        
      ACTION:
@@ -1171,8 +1173,8 @@ module States = struct
     | _ -> raise (Failure "error in state 44")
 
   (* ITEMS:
-       production → producers production_prec . code /SEMI /BAR
-       code → . CODE /SEMI /BAR
+       production → producers production_prec . code 		/ SEMI, BAR
+       code → . CODE 		/ SEMI, BAR
      GOTO:
        CODE -> 1
        code -> 46
@@ -1188,7 +1190,7 @@ module States = struct
     | _ -> raise (Failure "error in state 45")
 
   (* ITEMS:
-       production → producers production_prec code . /SEMI /BAR
+       production → producers production_prec code . 		/ SEMI, BAR
      GOTO:
        
      ACTION:
@@ -1203,15 +1205,15 @@ module States = struct
     | _ -> raise (Failure "error in state 46")
 
   (* ITEMS:
-       producers → producer . producers /CODE /DPREC
-       producers → . producer producers /CODE /DPREC
-       producers → . /CODE /DPREC
-       producer → . id EQ symbol /ID /TID /CODE /DPREC
-       producer → . symbol /ID /TID /CODE /DPREC
-       symbol → . id /ID /TID /CODE /DPREC
-       symbol → . tid /ID /TID /CODE /DPREC
-       id → . ID /ID /TID /CODE /DPREC /EQ
-       tid → . TID /ID /TID /CODE /DPREC
+       producers → producer . producers 		/ CODE, DPREC
+       producers → . producer producers 		/ CODE, DPREC
+       producers → . 		/ CODE, DPREC
+       producer → . id EQ symbol 		/ ID, TID, CODE, DPREC
+       producer → . symbol 		/ ID, TID, CODE, DPREC
+       symbol → . id 		/ ID, TID, CODE, DPREC
+       symbol → . tid 		/ ID, TID, CODE, DPREC
+       id → . ID 		/ ID, TID, CODE, DPREC, EQ
+       tid → . TID 		/ ID, TID, CODE, DPREC
      GOTO:
        ID -> 13
        TID -> 4
@@ -1246,7 +1248,7 @@ module States = struct
     | _ -> raise (Failure "error in state 47")
 
   (* ITEMS:
-       producers → producer producers . /CODE /DPREC
+       producers → producer producers . 		/ CODE, DPREC
      GOTO:
        
      ACTION:
@@ -1261,7 +1263,7 @@ module States = struct
     | _ -> raise (Failure "error in state 48")
 
   (* ITEMS:
-       producer → symbol . /ID /TID /CODE /DPREC
+       producer → symbol . 		/ ID, TID, CODE, DPREC
      GOTO:
        
      ACTION:
@@ -1276,8 +1278,8 @@ module States = struct
     | _ -> raise (Failure "error in state 49")
 
   (* ITEMS:
-       producer → id . EQ symbol /ID /TID /CODE /DPREC
-       symbol → id . /ID /TID /CODE /DPREC
+       producer → id . EQ symbol 		/ ID, TID, CODE, DPREC
+       symbol → id . 		/ ID, TID, CODE, DPREC
      GOTO:
        EQ -> 51
      ACTION:
@@ -1297,11 +1299,11 @@ module States = struct
     | _ -> raise (Failure "error in state 50")
 
   (* ITEMS:
-       producer → id EQ . symbol /ID /TID /CODE /DPREC
-       symbol → . id /ID /TID /CODE /DPREC
-       symbol → . tid /ID /TID /CODE /DPREC
-       id → . ID /ID /TID /CODE /DPREC
-       tid → . TID /ID /TID /CODE /DPREC
+       producer → id EQ . symbol 		/ ID, TID, CODE, DPREC
+       symbol → . id 		/ ID, TID, CODE, DPREC
+       symbol → . tid 		/ ID, TID, CODE, DPREC
+       id → . ID 		/ ID, TID, CODE, DPREC
+       tid → . TID 		/ ID, TID, CODE, DPREC
      GOTO:
        ID -> 13
        TID -> 4
@@ -1326,7 +1328,7 @@ module States = struct
     | _ -> raise (Failure "error in state 51")
 
   (* ITEMS:
-       producer → id EQ symbol . /ID /TID /CODE /DPREC
+       producer → id EQ symbol . 		/ ID, TID, CODE, DPREC
      GOTO:
        
      ACTION:
@@ -1341,7 +1343,7 @@ module States = struct
     | _ -> raise (Failure "error in state 52")
 
   (* ITEMS:
-       rule → id COLON rule_prods . SEMI /ID /EOF
+       rule → id COLON rule_prods . SEMI 		/ ID, EOF
      GOTO:
        SEMI -> 54
      ACTION:
@@ -1355,7 +1357,7 @@ module States = struct
     | _ -> raise (Failure "error in state 53")
 
   (* ITEMS:
-       rule → id COLON rule_prods SEMI . /ID /EOF
+       rule → id COLON rule_prods SEMI . 		/ ID, EOF
      GOTO:
        
      ACTION:
@@ -1370,7 +1372,7 @@ module States = struct
     | _ -> raise (Failure "error in state 54")
 
   (* ITEMS:
-       rule_prods → productions . /SEMI
+       rule_prods → productions . 		/ SEMI
      GOTO:
        
      ACTION:
@@ -1385,9 +1387,9 @@ module States = struct
     | _ -> raise (Failure "error in state 55")
 
   (* ITEMS:
-       rule_prods → production . productions /SEMI
-       productions → . BAR production productions /SEMI
-       productions → . /SEMI
+       rule_prods → production . productions 		/ SEMI
+       productions → . BAR production productions 		/ SEMI
+       productions → . 		/ SEMI
      GOTO:
        BAR -> 39
        productions -> 57
@@ -1409,7 +1411,7 @@ module States = struct
     | _ -> raise (Failure "error in state 56")
 
   (* ITEMS:
-       rule_prods → production productions . /SEMI
+       rule_prods → production productions . 		/ SEMI
      GOTO:
        
      ACTION:
@@ -1424,17 +1426,17 @@ module States = struct
     | _ -> raise (Failure "error in state 57")
 
   (* ITEMS:
-       decls → decl . decls /DSEP
-       decls → . decl decls /DSEP
-       decls → . /DSEP
-       decl → . DTOKEN tp tids /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-       decl → . DSTART tp ids /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-       decl → . DTYPE tp symbols /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-       decl → . DTOKEN tids /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-       decl → . DSTART ids /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-       decl → . DLEFT symbols /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-       decl → . DRIGHT symbols /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
-       decl → . DNONASSOC symbols /DTOKEN /DTYPE /DSTART /DLEFT /DRIGHT /DNONASSOC /DSEP
+       decls → decl . decls 		/ DSEP
+       decls → . decl decls 		/ DSEP
+       decls → . 		/ DSEP
+       decl → . DTOKEN tp tids 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
+       decl → . DSTART tp ids 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
+       decl → . DTYPE tp symbols 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
+       decl → . DTOKEN tids 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
+       decl → . DSTART ids 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
+       decl → . DLEFT symbols 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
+       decl → . DRIGHT symbols 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
+       decl → . DNONASSOC symbols 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
      GOTO:
        DTOKEN -> 3
        DTYPE -> 11
@@ -1483,7 +1485,7 @@ module States = struct
     | _ -> raise (Failure "error in state 58")
 
   (* ITEMS:
-       decls → decl decls . /DSEP
+       decls → decl decls . 		/ DSEP
      GOTO:
        
      ACTION:

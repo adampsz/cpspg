@@ -286,7 +286,9 @@ module Run (S : Types.Settings) (G : Types.Grammar) : Types.Automaton = struct
     (* Single shift *)
     | Some shift, [], [], [] -> [ shift ]
     (* Single reducion *)
-    | None, [], [ action ], [] | None, [ action ], [], [] -> [ action ]
+    | None, [ action ], [], [] -> [ action ]
+    | None, [], [ action ], [] -> [ action ]
+    | None, [], [], [ action ] -> [ action ]
     (* One reduction with precedence higher than shift *)
     | Some _, [ action ], [], [] -> [ action ]
     (* Many reductions with precedence lower than shift *)

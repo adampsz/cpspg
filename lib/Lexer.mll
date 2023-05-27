@@ -67,8 +67,8 @@ rule main = parse
   | uppercase identchar* as i { TID i }
 
   | '<'  { TYPE (buffered " "  (tag 0) lexbuf) }
-  | "{"  { CODE (buffered " "  (code false 0) lexbuf) }
-  | "%{" { CODE (buffered "  " (code true 0) lexbuf) }
+  | "{"  { CODE (buffered " "  (code "}" 0) lexbuf) }
+  | "%{" { CODE (buffered "  " (code "%}" 0) lexbuf) }
 
   | eof { EOF }
 
@@ -87,28 +87,23 @@ and tag depth buf = parse
   | eof          { failwith "unterminated type tag" }
   | _ as c       { add_c buf c; tag depth buf lexbuf }
 
-and code head depth buf = parse
-  | ['[' '(' '{'] as c { add_c buf c; code head (depth + 1) buf lexbuf }
-  | [']' ')'] as c { add_c buf c; code head (depth - 1) buf lexbuf }
+and code e depth buf = parse
+  | ['[' '(' '{'] as c { add_c buf c; code e (depth + 1) buf lexbuf }
+  | [']' ')'] as c { add_c buf c; code e (depth - 1) buf lexbuf }
 
-  | '}' as c
-    { if depth > 0 || head = true
-      then (add_c buf c; code head (depth - 1) buf lexbuf)
-      else add_c buf ' ' }
-
-  | "%}" as c
-    { if depth > 0 || head = false
-      then (add_s buf c; code head (depth - 1) buf lexbuf)
-      else add_s buf "  " }
+  | "}" | "%}" as c
+    { if depth > 0 || c <> e
+      then (add_s buf c; code e (depth - 1) buf lexbuf)
+      else add_s buf (String.make (String.length c) ' ') }
 
   (* TODO: Proper location handling *)
-  | "$loc" { add_s buf "(List.hd _loc)"; code head depth buf lexbuf }
+  | "$loc" { add_s buf "(List.hd _loc)"; code e depth buf lexbuf }
 
-  | '"' as c { add_c buf c; string buf lexbuf; add_c buf c; code head depth buf lexbuf }
+  | '"' as c { add_c buf c; string buf lexbuf; add_c buf c; code e depth buf lexbuf }
 
-  | newline as c { new_line lexbuf; add_s buf c; code head depth buf lexbuf }
+  | newline as c { new_line lexbuf; add_s buf c; code e depth buf lexbuf }
   | eof          { failwith "unterminated code" }
-  | _ as c       { add_c buf c; code head depth buf lexbuf }
+  | _ as c       { add_c buf c; code e depth buf lexbuf }
 
 and string buf = parse
   | "\\\\" as c { add_s buf c; string buf lexbuf }

@@ -13,7 +13,10 @@ struct
     | NTerm n -> Format.pp_print_string f (nterm_name n)
   ;;
 
-  let fmt_follow f t = Format.fprintf f " /%s" (term_name t)
+  let fmt_follow f i t =
+    Format.fprintf f "%s%s" (if i > 0 then ", " else " \t\t/ ") (term_name t)
+  ;;
+
   let fmt_args f args = List.iter (Format.fprintf f " %a" fmt_arg) args
 
   let fmt_item f group item =
@@ -22,7 +25,7 @@ struct
     and pref = List.rev group.g_prefix
     and suff = item.i_suffix in
     Format.fprintf f "%s%s →%a .%a" name i fmt_args pref fmt_args suff;
-    TermSet.iter (fmt_follow f) group.g_lookahead
+    TermSet.to_seq group.g_lookahead |> Seq.iteri (fmt_follow f)
   ;;
 
   let fmt_group f group =

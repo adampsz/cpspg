@@ -92,12 +92,18 @@ let main () =
   let module Grammar = Cpspg.GrammarGen.Run (Settings) (Ast) in
   (* Third pass: create LR automaton *)
   let module Automaton = Cpspg.AutomatonGen.Run (Settings) (Grammar) in
-  Warning.report_conflicts (module Grammar) (module Automaton) !conflicts;
+  let module Conflicts = Warning.Conflict (Grammar) (Automaton) in
+  List.iter (fun (i, s, a) -> Conflicts.report i s a) !conflicts;
   (* Fourth pass: initialize code generation *)
   let module Code = Cpspg.CodeGen.Make (Settings) (Grammar) (Automaton) in
   let module Graphviz = Cpspg.Graphviz.Make (Grammar) in
   (* Final work *)
-  Code.write (Format.formatter_of_out_channel output)
+  Code.write (Format.formatter_of_out_channel output);
+  match !output_automaton with
+  | None -> ()
+  | Some x ->
+    let out = if x = "-" then stdout else open_out x in
+    Graphviz.fmt_automaton (Format.formatter_of_out_channel out) Automaton.automaton
 ;;
 
 let _ =

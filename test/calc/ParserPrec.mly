@@ -16,8 +16,8 @@ let rec pow a = function
 
 %left PLUS MINUS
 %left SLASH STAR PERCENT
-%right CARET
 %nonassoc UMINUS
+%right CARET
 
 %%
 

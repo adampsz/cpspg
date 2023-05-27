@@ -143,8 +143,7 @@ module Run (S : Types.Settings) (A : Types.Ast) : Types.Grammar = struct
 
   let tr_action p symbol index =
     let id = function
-      | { Grammar.id = None; Grammar.actual = Grammar.NTerm name; _ } -> Some name.data
-      | { Grammar.id = Some id; _ } -> Some id.data
+      | { Grammar.id = Some id; Grammar.actual = _; _ } -> Some id.data
       | { Grammar.id = None; _ } -> None
     in
     let sa_code = p.Grammar.action
