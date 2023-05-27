@@ -1,7 +1,26 @@
 module IntMap = Map.Make (Int)
 module SymbolMap = Map.Make (Automaton.Symbol)
 
-let lib =
+let action_lib =
+  "  let _kw_endpos ~loc _ =\n\
+  \    match loc with\n\
+  \    | l :: _ -> snd l\n\
+  \    | [] -> Lexing.dummy_pos\n\
+  \  ;;\n\n\
+  \  let _kw_startpos ~loc n =\n\
+  \    match List.nth_opt loc (n - 1) with\n\
+  \    | Some l -> fst l\n\
+  \    | None -> _kw_endpos ~loc n\n\
+  \  ;;\n\n\
+  \  let _kw_symbolstartpos ~loc:_ _ = failwith \"unimplemented: $symbolstartpos\"\n\
+  \  let _kw_startofs ~loc:_ _ = failwith \"unimplemented: $startofs\"\n\
+  \  let _kw_endofs ~loc:_ _ = failwith \"unimplemented: $endofs\"\n\
+  \  let _kw_symbolstartofs ~loc:_ _ = failwith \"unimplemented: $symbolstartofs\"\n\
+  \  let _kw_loc ~loc n = _kw_startpos ~loc n, _kw_endpos ~loc n\n\
+  \  let _kw_sloc ~loc:_ _ = failwith \"unimplemented: $sloc\"\n"
+;;
+
+let state_lib =
   "  let lexfun = ref (fun _ -> assert false)\n\
   \  let lexbuf = ref (Lexing.from_string String.empty)\n\
   \  let peeked = ref None\n\
@@ -234,6 +253,35 @@ struct
     Format.fprintf f "\n"
   ;;
 
+  let write_semantic_action_code f action =
+    let n = List.length action.sa_args
+    and code = action.sa_code in
+    let write_part f l r =
+      let len = r.Lexing.pos_cnum - l.Lexing.pos_cnum
+      and ofs = l.pos_cnum - (fst action.sa_code.loc).pos_cnum in
+      write_string f { data = String.sub (fst code.data) ofs len; loc = l, r }
+    and get_impl = function
+      | Grammar.KwI i -> Printf.sprintf "_a%d" i
+      | Grammar.KwStartpos -> Printf.sprintf "_kw_startpos ~loc:_loc %d" n
+      | Grammar.KwEndpos -> Printf.sprintf "_kw_endpos ~loc:_loc %d" n
+      | Grammar.KwSymbolstartpos -> Printf.sprintf "_kw_symbolstartpos ~loc:_loc %d" n
+      | Grammar.KwStartofs -> Printf.sprintf "_kw_startofs ~loc:_loc %d" n
+      | Grammar.KwEndofs -> Printf.sprintf "_kw_endofs ~loc:_loc %d" n
+      | Grammar.KwSymbolstartofs -> Printf.sprintf "_kw_symbolstartofs ~loc:_loc %d" n
+      | Grammar.KwLoc -> Printf.sprintf "_kw_loc ~loc:_loc %d" n
+      | Grammar.KwSloc -> Printf.sprintf "_kw_sloc ~loc:_loc %d" n
+    in
+    let rec loop pos = function
+      | [] -> write_part f pos (snd code.loc)
+      | (kw, loc) :: kws ->
+        write_part f pos (fst loc);
+        let impl = get_impl kw in
+        Format.fprintf f "(%s) " impl;
+        loop (snd loc) kws
+    in
+    loop (fst action.sa_code.loc) (snd action.sa_code.data)
+  ;;
+
   let write_semantic_action f id action =
     let item = List.nth (G.group action.sa_symbol).g_items action.sa_index in
     let iter s = function
@@ -244,7 +292,7 @@ struct
     write_semantic_action_id f action id;
     Format.fprintf f " ~loc:_loc";
     List.iter2 iter (List.rev item.i_suffix) (List.rev action.sa_args);
-    Format.fprintf f " () = %t" (fun f -> write_string f action.sa_code)
+    Format.fprintf f " () = %t" (fun f -> write_semantic_action_code f action)
   ;;
 
   let write_state_comment f state =
@@ -315,14 +363,15 @@ struct
        [@@@@@@warning \"-redundant-subpat\"]\n\n\
        %t\n\n\
        %tmodule Actions = struct\n\
-       %tend\n\n\
+       %s%tend\n\n\
        module States = struct\n\
        %s%tend\n\n\
        %t"
       (fun f -> write_string f A.automaton.a_header)
       (fun f -> write_term_type f G.symbols)
+      action_lib
       (fun f -> IntMap.iter (write_semantic_action f) A.automaton.a_actions)
-      lib
+      state_lib
       (fun f -> IntMap.bindings A.automaton.a_states |> state_letrec (write_state f))
       (fun f -> List.iter (write_entry f) A.automaton.a_starting)
   ;;

@@ -5,41 +5,49 @@ type 'a node =
   ; data : 'a
   }
 
-type id = string node
-type tid = string node
-type ty = string node
-type code = string node
+type keyword =
+  | KwI of int
+  | KwStartpos
+  | KwEndpos
+  | KwSymbolstartpos
+  | KwStartofs
+  | KwEndofs
+  | KwSymbolstartofs
+  | KwLoc
+  | KwSloc
+
+type code = string * (keyword * loc) list
 
 type symbol =
-  | NTerm of id
-  | Term of tid
+  | NTerm of string node
+  | Term of string node
 
 type decl =
-  | DeclToken of ty option * tid list
-  | DeclStart of ty option * id list
-  | DeclType of ty * symbol list
+  | DeclToken of string node option * string node list
+  | DeclStart of string node option * string node list
+  | DeclType of string node * symbol list
   | DeclLeft of symbol list
   | DeclRight of symbol list
   | DeclNonassoc of symbol list
 
 type producer =
-  { id : id option
+  { id : string node option
   ; actual : symbol
   }
 
 type production =
   { prod : producer list
   ; prec : symbol option
-  ; action : code
+  ; action : code node
   }
 
 type rule =
-  { id : id
+  { id : string node
   ; prods : production list
   }
 
 type t =
-  { header : code
+  { header : string node
   ; decls : decl list
   ; rules : rule list
   }

@@ -8,7 +8,8 @@ let mknode ~loc data = { loc; data }
 
 %start<Grammar.t> grammar
 
-%token<string> ID TID TYPE CODE
+%token<string> ID TID TYPE
+%token<code> CODE
 %token DTOKEN DTYPE DSTART DLEFT DRIGHT DNONASSOC DPREC DSEP
 %token COLON SEMI BAR EQ
 %token EOF
@@ -16,7 +17,7 @@ let mknode ~loc data = { loc; data }
 %%
 
 grammar:
-    | header=code decls=decls DSEP rules=rules EOF { { header; decls; rules } }
+    | header=hcode decls=decls DSEP rules=rules EOF { { header = header; decls; rules } }
 ;
 
 decls:
@@ -93,7 +94,8 @@ symbol:
     | name=tid { Term name }
 ;
 
-id:   x=ID   { mknode ~loc:$loc x };
-tid:  x=TID  { mknode ~loc:$loc x };
-tp:   x=TYPE { mknode ~loc:$loc x };
-code: x=CODE { mknode ~loc:$loc x };
+id:    x=ID   { mknode ~loc:$loc x };
+tid:   x=TID  { mknode ~loc:$loc x };
+tp:    x=TYPE { mknode ~loc:$loc x };
+code:  x=CODE { mknode ~loc:$loc x };
+hcode: x=CODE { mknode ~loc:$loc (fst x) };

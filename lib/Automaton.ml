@@ -74,7 +74,7 @@ type semantic_action =
   { sa_symbol : Nonterminal.t
   ; sa_index : int
   ; sa_args : string option list
-  ; sa_code : string node
+  ; sa_code : Grammar.code node
   }
 
 type action =

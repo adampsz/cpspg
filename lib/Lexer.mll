@@ -1,5 +1,6 @@
 {
   open Parser
+  open Grammar
   open Lexing
 
   let add_c = Buffer.add_char
@@ -18,9 +19,20 @@
     let pos = lexbuf.lex_start_p in
     let buf = Buffer.create 64 in
     add_s buf pre;
-    f buf lexbuf;
+    let res = f buf lexbuf in
     lexbuf.lex_start_p <- pos;
-    Buffer.contents buf
+    res
+
+  let keyword_of_string = function
+    | "$startpos" -> KwStartpos
+    | "$endpos" -> KwEndpos
+    | "$symbolstartpos" -> KwSymbolstartpos
+    | "$startofs" -> KwStartofs
+    | "$endofs" -> KwEndofs
+    | "$symbolstartofs" -> KwSymbolstartofs
+    | "$loc" -> KwLoc
+    | "$sloc" -> KwSloc
+    | _ -> assert false
 }
 
 let newline = ('\013'* '\010')
@@ -67,8 +79,8 @@ rule main = parse
   | uppercase identchar* as i { TID i }
 
   | '<'  { TYPE (buffered " "  (tag 0) lexbuf) }
-  | "{"  { CODE (buffered " "  (code "}" 0) lexbuf) }
-  | "%{" { CODE (buffered "  " (code "%}" 0) lexbuf) }
+  | "{"  { CODE (buffered " "  (code "}" 0 []) lexbuf) }
+  | "%{" { CODE (buffered "  " (code "%}" 0 []) lexbuf) }
 
   | eof { EOF }
 
@@ -81,41 +93,51 @@ and tag depth buf = parse
   | '>' as c  {
     if depth > 0
     then (add_c buf c; tag depth buf lexbuf)
-    else add_c buf ' ' }
+    else (add_c buf ' '; Buffer.contents buf) }
   
   | newline as c { new_line lexbuf; add_s buf c; tag depth buf lexbuf }
   | eof          { failwith "unterminated type tag" }
   | _ as c       { add_c buf c; tag depth buf lexbuf }
 
-and code e depth buf = parse
-  | ['[' '(' '{'] as c { add_c buf c; code e (depth + 1) buf lexbuf }
-  | [']' ')'] as c { add_c buf c; code e (depth - 1) buf lexbuf }
+and code e depth kw buf = parse
+  | ['[' '(' '{'] as c { add_c buf c; code e (depth + 1) kw buf lexbuf }
+  | [']' ')'] as c { add_c buf c; code e (depth - 1) kw buf lexbuf }
 
   | "}" | "%}" as c
     { if depth > 0 || c <> e
-      then (add_s buf c; code e (depth - 1) buf lexbuf)
-      else add_s buf (String.make (String.length c) ' ') }
+      then (add_s buf c; code e (depth - 1) kw buf lexbuf)
+      else (add_s buf (String.make (String.length c) ' '); Buffer.contents buf, kw) }
 
-  (* TODO: Proper location handling *)
-  | "$loc" { add_s buf "(List.hd _loc)"; code e depth buf lexbuf }
+  | "$startpos"
+  | "$endpos"
+  | "$symbolstartpos"
+  | "$startofs"
+  | "$endofs"
+  | "$symbolstartofs"
+  | "$loc"
+  | "$sloc" as k
+    { 
+      add_s buf k;
+      let k = keyword_of_string k, (lexbuf.lex_start_p, lexbuf.lex_curr_p) in
+      code e depth (k :: kw) buf lexbuf }
 
-  | '"' as c { add_c buf c; string buf lexbuf; add_c buf c; code e depth buf lexbuf }
+  | '"' as c { add_c buf c; string buf lexbuf |> ignore; add_c buf c; code e depth kw buf lexbuf }
 
-  | newline as c { new_line lexbuf; add_s buf c; code e depth buf lexbuf }
+  | newline as c { new_line lexbuf; add_s buf c; code e depth kw buf lexbuf }
   | eof          { failwith "unterminated code" }
-  | _ as c       { add_c buf c; code e depth buf lexbuf }
+  | _ as c       { add_c buf c; code e depth kw buf lexbuf }
 
 and string buf = parse
   | "\\\\" as c { add_s buf c; string buf lexbuf }
   | "\\\"" as c { add_s buf c; string buf lexbuf }
   | _ as c      { add_c buf c; string buf lexbuf }
-  | '"' { }
+  | '"' { Buffer.contents buf }
 
 and comment depth = parse
   | "(*" { comment (depth + 1) lexbuf }
   | "*)" { if depth > 0 then comment (depth - 1) lexbuf }
 
-  | "\"" { string (Buffer.create 0) lexbuf; comment depth lexbuf }
+  | "\"" { string (Buffer.create 0) lexbuf |> ignore; comment depth lexbuf }
 
   | newline { new_line lexbuf; comment depth lexbuf }
   | eof     { failwith "unterminated comment" }
