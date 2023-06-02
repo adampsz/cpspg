@@ -98,23 +98,25 @@ module States = struct
   ;;
 
   let shift () =
-    let loc, _ = Option.get !peeked in
+    let sym = Option.get !peeked in
     peeked := None;
     lexbuf_fallback_p := !lexbuf.lex_curr_p;
-    loc
+    sym
   ;;
 
   let lookahead () =
     match !peeked with
-    | Some (_, tok) -> tok
+    | Some (tok, _) -> tok
     | None ->
       let tok = !lexfun !lexbuf
       and loc = !lexbuf.lex_start_p, !lexbuf.lex_curr_p in
-      peeked := Some (loc, tok);
+      peeked := Some (tok, loc);
       tok
   ;;
 
-  let reduce_loc ~loc = function
+  let loc_shift ~loc l = l :: loc
+
+  let loc_reduce ~loc = function
     | 0 -> (!lexbuf_fallback_p, !lexbuf_fallback_p) :: loc
     | n ->
       let rec skip n xs = if n = 0 then xs else skip (n - 1) (List.tl xs) in
@@ -135,7 +137,8 @@ module States = struct
     match lookahead () with
     (* Shift *)
     | CODE x ->
-      let loc = shift () :: loc in
+      let _, _l = shift () in
+      let loc = loc_shift ~loc _l in
       state_1 ~loc x _c1_hcode
     | _ -> raise (Failure "error in state 0")
 
@@ -150,7 +153,7 @@ module States = struct
     (* Reduce *)
     | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
       let x = Actions.a37_hcode ~loc a0_CODE ()
-      and loc = reduce_loc ~loc 1 in
+      and loc = loc_reduce ~loc 1 in
       _c0_hcode ~loc x
     | _ -> raise (Failure "error in state 1")
 
@@ -184,32 +187,38 @@ module States = struct
     match lookahead () with
     (* Shift *)
     | DTOKEN ->
-      let loc = shift () :: loc in
+      let _, _l = shift () in
+      let loc = loc_shift ~loc _l in
       state_3 ~loc _c2_decl
     (* Shift *)
     | DTYPE ->
-      let loc = shift () :: loc in
+      let _, _l = shift () in
+      let loc = loc_shift ~loc _l in
       state_11 ~loc _c2_decl
     (* Shift *)
     | DSTART ->
-      let loc = shift () :: loc in
+      let _, _l = shift () in
+      let loc = loc_shift ~loc _l in
       state_19 ~loc _c2_decl
     (* Shift *)
     | DLEFT ->
-      let loc = shift () :: loc in
+      let _, _l = shift () in
+      let loc = loc_shift ~loc _l in
       state_25 ~loc _c2_decl
     (* Shift *)
     | DRIGHT ->
-      let loc = shift () :: loc in
+      let _, _l = shift () in
+      let loc = loc_shift ~loc _l in
       state_27 ~loc _c2_decl
     (* Shift *)
     | DNONASSOC ->
-      let loc = shift () :: loc in
+      let _, _l = shift () in
+      let loc = loc_shift ~loc _l in
       state_29 ~loc _c2_decl
     (* Reduce *)
     | DSEP ->
       let x = Actions.a2_decls ~loc ()
-      and loc = reduce_loc ~loc 0 in
+      and loc = loc_reduce ~loc 0 in
       _c1_decls ~loc x
     | _ -> raise (Failure "error in state 2")
 
@@ -236,16 +245,18 @@ module States = struct
     match lookahead () with
     (* Shift *)
     | TID x ->
-      let loc = shift () :: loc in
+      let _, _l = shift () in
+      let loc = loc_shift ~loc _l in
       state_4 ~loc x _c2_tid
     (* Shift *)
     | TYPE x ->
-      let loc = shift () :: loc in
+      let _, _l = shift () in
+      let loc = loc_shift ~loc _l in
       state_5 ~loc x _c3_tp
     (* Reduce *)
     | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
       let x = Actions.a28_tids ~loc ()
-      and loc = reduce_loc ~loc 0 in
+      and loc = loc_reduce ~loc 0 in
       _c1_tids ~loc x
     | _ -> raise (Failure "error in state 3")
 
@@ -260,7 +271,7 @@ module States = struct
     (* Reduce *)
     | ID _ | TID _ | CODE _ | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DPREC | DSEP ->
       let x = Actions.a34_tid ~loc a0_TID ()
-      and loc = reduce_loc ~loc 1 in
+      and loc = loc_reduce ~loc 1 in
       _c0_tid ~loc x
     | _ -> raise (Failure "error in state 4")
 
@@ -275,7 +286,7 @@ module States = struct
     (* Reduce *)
     | ID _ | TID _ | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
       let x = Actions.a35_tp ~loc a0_TYPE ()
-      and loc = reduce_loc ~loc 1 in
+      and loc = loc_reduce ~loc 1 in
       _c0_tp ~loc x
     | _ -> raise (Failure "error in state 5")
 
@@ -290,7 +301,7 @@ module States = struct
     (* Reduce *)
     | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
       let x = Actions.a6_decl ~loc a0_tids ()
-      and loc = reduce_loc ~loc 2 in
+      and loc = loc_reduce ~loc 2 in
       _c0_decl ~loc x
     | _ -> raise (Failure "error in state 6")
 
@@ -312,12 +323,13 @@ module States = struct
     match lookahead () with
     (* Shift *)
     | TID x ->
-      let loc = shift () :: loc in
+      let _, _l = shift () in
+      let loc = loc_shift ~loc _l in
       state_4 ~loc x _c2_tid
     (* Reduce *)
     | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
       let x = Actions.a28_tids ~loc ()
-      and loc = reduce_loc ~loc 0 in
+      and loc = loc_reduce ~loc 0 in
       _c1_tids ~loc x
     | _ -> raise (Failure "error in state 7")
 
@@ -332,7 +344,7 @@ module States = struct
     (* Reduce *)
     | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
       let x = Actions.a27_tids ~loc a0_tids a1_tid ()
-      and loc = reduce_loc ~loc 2 in
+      and loc = loc_reduce ~loc 2 in
       _c0_tids ~loc x
     | _ -> raise (Failure "error in state 8")
 
@@ -354,12 +366,13 @@ module States = struct
     match lookahead () with
     (* Shift *)
     | TID x ->
-      let loc = shift () :: loc in
+      let _, _l = shift () in
+      let loc = loc_shift ~loc _l in
       state_4 ~loc x _c2_tid
     (* Reduce *)
     | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
       let x = Actions.a28_tids ~loc ()
-      and loc = reduce_loc ~loc 0 in
+      and loc = loc_reduce ~loc 0 in
       _c1_tids ~loc x
     | _ -> raise (Failure "error in state 9")
 
@@ -374,7 +387,7 @@ module States = struct
     (* Reduce *)
     | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
       let x = Actions.a3_decl ~loc a0_tids a1_tp ()
-      and loc = reduce_loc ~loc 3 in
+      and loc = loc_reduce ~loc 3 in
       _c0_decl ~loc x
     | _ -> raise (Failure "error in state 10")
 
@@ -391,7 +404,8 @@ module States = struct
     match lookahead () with
     (* Shift *)
     | TYPE x ->
-      let loc = shift () :: loc in
+      let _, _l = shift () in
+      let loc = loc_shift ~loc _l in
       state_5 ~loc x _c1_tp
     | _ -> raise (Failure "error in state 11")
 
@@ -421,16 +435,18 @@ module States = struct
     match lookahead () with
     (* Shift *)
     | ID x ->
-      let loc = shift () :: loc in
+      let _, _l = shift () in
+      let loc = loc_shift ~loc _l in
       state_13 ~loc x _c3_id
     (* Shift *)
     | TID x ->
-      let loc = shift () :: loc in
+      let _, _l = shift () in
+      let loc = loc_shift ~loc _l in
       state_4 ~loc x _c4_tid
     (* Reduce *)
     | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
       let x = Actions.a30_symbols ~loc ()
-      and loc = reduce_loc ~loc 0 in
+      and loc = loc_reduce ~loc 0 in
       _c1_symbols ~loc x
     | _ -> raise (Failure "error in state 12")
 
@@ -445,7 +461,7 @@ module States = struct
     (* Reduce *)
     | ID _ | TID _ | CODE _ | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DPREC | DSEP | COLON | EQ ->
       let x = Actions.a33_id ~loc a0_ID ()
-      and loc = reduce_loc ~loc 1 in
+      and loc = loc_reduce ~loc 1 in
       _c0_id ~loc x
     | _ -> raise (Failure "error in state 13")
 
@@ -460,7 +476,7 @@ module States = struct
     (* Reduce *)
     | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
       let x = Actions.a5_decl ~loc a0_symbols a1_tp ()
-      and loc = reduce_loc ~loc 3 in
+      and loc = loc_reduce ~loc 3 in
       _c0_decl ~loc x
     | _ -> raise (Failure "error in state 14")
 
@@ -490,16 +506,18 @@ module States = struct
     match lookahead () with
     (* Shift *)
     | ID x ->
-      let loc = shift () :: loc in
+      let _, _l = shift () in
+      let loc = loc_shift ~loc _l in
       state_13 ~loc x _c3_id
     (* Shift *)
     | TID x ->
-      let loc = shift () :: loc in
+      let _, _l = shift () in
+      let loc = loc_shift ~loc _l in
       state_4 ~loc x _c4_tid
     (* Reduce *)
     | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
       let x = Actions.a30_symbols ~loc ()
-      and loc = reduce_loc ~loc 0 in
+      and loc = loc_reduce ~loc 0 in
       _c1_symbols ~loc x
     | _ -> raise (Failure "error in state 15")
 
@@ -514,7 +532,7 @@ module States = struct
     (* Reduce *)
     | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
       let x = Actions.a29_symbols ~loc a0_symbols a1_symbol ()
-      and loc = reduce_loc ~loc 2 in
+      and loc = loc_reduce ~loc 2 in
       _c0_symbols ~loc x
     | _ -> raise (Failure "error in state 16")
 
@@ -529,7 +547,7 @@ module States = struct
     (* Reduce *)
     | ID _ | TID _ | CODE _ | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DPREC | DSEP ->
       let x = Actions.a31_symbol ~loc a0_id ()
-      and loc = reduce_loc ~loc 1 in
+      and loc = loc_reduce ~loc 1 in
       _c0_symbol ~loc x
     | _ -> raise (Failure "error in state 17")
 
@@ -544,7 +562,7 @@ module States = struct
     (* Reduce *)
     | ID _ | TID _ | CODE _ | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DPREC | DSEP ->
       let x = Actions.a32_symbol ~loc a0_tid ()
-      and loc = reduce_loc ~loc 1 in
+      and loc = loc_reduce ~loc 1 in
       _c0_symbol ~loc x
     | _ -> raise (Failure "error in state 18")
 
@@ -571,16 +589,18 @@ module States = struct
     match lookahead () with
     (* Shift *)
     | ID x ->
-      let loc = shift () :: loc in
+      let _, _l = shift () in
+      let loc = loc_shift ~loc _l in
       state_13 ~loc x _c2_id
     (* Shift *)
     | TYPE x ->
-      let loc = shift () :: loc in
+      let _, _l = shift () in
+      let loc = loc_shift ~loc _l in
       state_5 ~loc x _c3_tp
     (* Reduce *)
     | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
       let x = Actions.a26_ids ~loc ()
-      and loc = reduce_loc ~loc 0 in
+      and loc = loc_reduce ~loc 0 in
       _c1_ids ~loc x
     | _ -> raise (Failure "error in state 19")
 
@@ -595,7 +615,7 @@ module States = struct
     (* Reduce *)
     | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
       let x = Actions.a7_decl ~loc a0_ids ()
-      and loc = reduce_loc ~loc 2 in
+      and loc = loc_reduce ~loc 2 in
       _c0_decl ~loc x
     | _ -> raise (Failure "error in state 20")
 
@@ -617,12 +637,13 @@ module States = struct
     match lookahead () with
     (* Shift *)
     | ID x ->
-      let loc = shift () :: loc in
+      let _, _l = shift () in
+      let loc = loc_shift ~loc _l in
       state_13 ~loc x _c2_id
     (* Reduce *)
     | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
       let x = Actions.a26_ids ~loc ()
-      and loc = reduce_loc ~loc 0 in
+      and loc = loc_reduce ~loc 0 in
       _c1_ids ~loc x
     | _ -> raise (Failure "error in state 21")
 
@@ -637,7 +658,7 @@ module States = struct
     (* Reduce *)
     | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
       let x = Actions.a25_ids ~loc a0_ids a1_id ()
-      and loc = reduce_loc ~loc 2 in
+      and loc = loc_reduce ~loc 2 in
       _c0_ids ~loc x
     | _ -> raise (Failure "error in state 22")
 
@@ -659,12 +680,13 @@ module States = struct
     match lookahead () with
     (* Shift *)
     | ID x ->
-      let loc = shift () :: loc in
+      let _, _l = shift () in
+      let loc = loc_shift ~loc _l in
       state_13 ~loc x _c2_id
     (* Reduce *)
     | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
       let x = Actions.a26_ids ~loc ()
-      and loc = reduce_loc ~loc 0 in
+      and loc = loc_reduce ~loc 0 in
       _c1_ids ~loc x
     | _ -> raise (Failure "error in state 23")
 
@@ -679,7 +701,7 @@ module States = struct
     (* Reduce *)
     | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
       let x = Actions.a4_decl ~loc a0_ids a1_tp ()
-      and loc = reduce_loc ~loc 3 in
+      and loc = loc_reduce ~loc 3 in
       _c0_decl ~loc x
     | _ -> raise (Failure "error in state 24")
 
@@ -709,16 +731,18 @@ module States = struct
     match lookahead () with
     (* Shift *)
     | ID x ->
-      let loc = shift () :: loc in
+      let _, _l = shift () in
+      let loc = loc_shift ~loc _l in
       state_13 ~loc x _c3_id
     (* Shift *)
     | TID x ->
-      let loc = shift () :: loc in
+      let _, _l = shift () in
+      let loc = loc_shift ~loc _l in
       state_4 ~loc x _c4_tid
     (* Reduce *)
     | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
       let x = Actions.a30_symbols ~loc ()
-      and loc = reduce_loc ~loc 0 in
+      and loc = loc_reduce ~loc 0 in
       _c1_symbols ~loc x
     | _ -> raise (Failure "error in state 25")
 
@@ -733,7 +757,7 @@ module States = struct
     (* Reduce *)
     | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
       let x = Actions.a8_decl ~loc a0_symbols ()
-      and loc = reduce_loc ~loc 2 in
+      and loc = loc_reduce ~loc 2 in
       _c0_decl ~loc x
     | _ -> raise (Failure "error in state 26")
 
@@ -763,16 +787,18 @@ module States = struct
     match lookahead () with
     (* Shift *)
     | ID x ->
-      let loc = shift () :: loc in
+      let _, _l = shift () in
+      let loc = loc_shift ~loc _l in
       state_13 ~loc x _c3_id
     (* Shift *)
     | TID x ->
-      let loc = shift () :: loc in
+      let _, _l = shift () in
+      let loc = loc_shift ~loc _l in
       state_4 ~loc x _c4_tid
     (* Reduce *)
     | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
       let x = Actions.a30_symbols ~loc ()
-      and loc = reduce_loc ~loc 0 in
+      and loc = loc_reduce ~loc 0 in
       _c1_symbols ~loc x
     | _ -> raise (Failure "error in state 27")
 
@@ -787,7 +813,7 @@ module States = struct
     (* Reduce *)
     | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
       let x = Actions.a9_decl ~loc a0_symbols ()
-      and loc = reduce_loc ~loc 2 in
+      and loc = loc_reduce ~loc 2 in
       _c0_decl ~loc x
     | _ -> raise (Failure "error in state 28")
 
@@ -817,16 +843,18 @@ module States = struct
     match lookahead () with
     (* Shift *)
     | ID x ->
-      let loc = shift () :: loc in
+      let _, _l = shift () in
+      let loc = loc_shift ~loc _l in
       state_13 ~loc x _c3_id
     (* Shift *)
     | TID x ->
-      let loc = shift () :: loc in
+      let _, _l = shift () in
+      let loc = loc_shift ~loc _l in
       state_4 ~loc x _c4_tid
     (* Reduce *)
     | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
       let x = Actions.a30_symbols ~loc ()
-      and loc = reduce_loc ~loc 0 in
+      and loc = loc_reduce ~loc 0 in
       _c1_symbols ~loc x
     | _ -> raise (Failure "error in state 29")
 
@@ -841,7 +869,7 @@ module States = struct
     (* Reduce *)
     | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
       let x = Actions.a10_decl ~loc a0_symbols ()
-      and loc = reduce_loc ~loc 2 in
+      and loc = loc_reduce ~loc 2 in
       _c0_decl ~loc x
     | _ -> raise (Failure "error in state 30")
 
@@ -855,7 +883,8 @@ module States = struct
     match lookahead () with
     (* Shift *)
     | DSEP ->
-      let loc = shift () :: loc in
+      let _, _l = shift () in
+      let loc = loc_shift ~loc _l in
       state_32 ~loc a0_decls a1_hcode _c0_grammar_starting
     | _ -> raise (Failure "error in state 31")
 
@@ -880,12 +909,13 @@ module States = struct
     match lookahead () with
     (* Shift *)
     | ID x ->
-      let loc = shift () :: loc in
+      let _, _l = shift () in
+      let loc = loc_shift ~loc _l in
       state_13 ~loc x _c3_id
     (* Reduce *)
     | EOF ->
       let x = Actions.a12_rules ~loc ()
-      and loc = reduce_loc ~loc 0 in
+      and loc = loc_reduce ~loc 0 in
       _c1_rules ~loc x
     | _ -> raise (Failure "error in state 32")
 
@@ -899,7 +929,8 @@ module States = struct
     match lookahead () with
     (* Shift *)
     | EOF ->
-      let loc = shift () :: loc in
+      let _, _l = shift () in
+      let loc = loc_shift ~loc _l in
       state_34 ~loc a0_rules a2_decls a3_hcode _c0_grammar_starting
     | _ -> raise (Failure "error in state 33")
 
@@ -935,12 +966,13 @@ module States = struct
     match lookahead () with
     (* Shift *)
     | ID x ->
-      let loc = shift () :: loc in
+      let _, _l = shift () in
+      let loc = loc_shift ~loc _l in
       state_13 ~loc x _c3_id
     (* Reduce *)
     | EOF ->
       let x = Actions.a12_rules ~loc ()
-      and loc = reduce_loc ~loc 0 in
+      and loc = loc_reduce ~loc 0 in
       _c1_rules ~loc x
     | _ -> raise (Failure "error in state 35")
 
@@ -955,7 +987,7 @@ module States = struct
     (* Reduce *)
     | EOF ->
       let x = Actions.a11_rules ~loc a0_rules a1_rule ()
-      and loc = reduce_loc ~loc 2 in
+      and loc = loc_reduce ~loc 2 in
       _c0_rules ~loc x
     | _ -> raise (Failure "error in state 36")
 
@@ -969,7 +1001,8 @@ module States = struct
     match lookahead () with
     (* Shift *)
     | COLON ->
-      let loc = shift () :: loc in
+      let _, _l = shift () in
+      let loc = loc_shift ~loc _l in
       state_38 ~loc a0_id _c0_rule
     | _ -> raise (Failure "error in state 37")
 
@@ -1017,24 +1050,27 @@ module States = struct
     (* Reduce *)
     | CODE _ | DPREC ->
       let x = Actions.a22_producers ~loc ()
-      and loc = reduce_loc ~loc 0 in
+      and loc = loc_reduce ~loc 0 in
       _c4_producers ~loc x
     (* Reduce *)
     | SEMI ->
       let x = Actions.a17_productions ~loc ()
-      and loc = reduce_loc ~loc 0 in
+      and loc = loc_reduce ~loc 0 in
       _c2_productions ~loc x
     (* Shift *)
     | ID x ->
-      let loc = shift () :: loc in
+      let _, _l = shift () in
+      let loc = loc_shift ~loc _l in
       state_13 ~loc x _c7_id
     (* Shift *)
     | TID x ->
-      let loc = shift () :: loc in
+      let _, _l = shift () in
+      let loc = loc_shift ~loc _l in
       state_4 ~loc x _c8_tid
     (* Shift *)
     | BAR ->
-      let loc = shift () :: loc in
+      let _, _l = shift () in
+      let loc = loc_shift ~loc _l in
       state_39 ~loc _c2_productions
     | _ -> raise (Failure "error in state 38")
 
@@ -1071,16 +1107,18 @@ module States = struct
     match lookahead () with
     (* Shift *)
     | ID x ->
-      let loc = shift () :: loc in
+      let _, _l = shift () in
+      let loc = loc_shift ~loc _l in
       state_13 ~loc x _c5_id
     (* Shift *)
     | TID x ->
-      let loc = shift () :: loc in
+      let _, _l = shift () in
+      let loc = loc_shift ~loc _l in
       state_4 ~loc x _c6_tid
     (* Reduce *)
     | CODE _ | DPREC ->
       let x = Actions.a22_producers ~loc ()
-      and loc = reduce_loc ~loc 0 in
+      and loc = loc_reduce ~loc 0 in
       _c2_producers ~loc x
     | _ -> raise (Failure "error in state 39")
 
@@ -1099,12 +1137,13 @@ module States = struct
     match lookahead () with
     (* Shift *)
     | BAR ->
-      let loc = shift () :: loc in
+      let _, _l = shift () in
+      let loc = loc_shift ~loc _l in
       state_39 ~loc _c1_productions
     (* Reduce *)
     | SEMI ->
       let x = Actions.a17_productions ~loc ()
-      and loc = reduce_loc ~loc 0 in
+      and loc = loc_reduce ~loc 0 in
       _c1_productions ~loc x
     | _ -> raise (Failure "error in state 40")
 
@@ -1119,7 +1158,7 @@ module States = struct
     (* Reduce *)
     | SEMI ->
       let x = Actions.a16_productions ~loc a0_productions a1_production ()
-      and loc = reduce_loc ~loc 3 in
+      and loc = loc_reduce ~loc 3 in
       _c0_productions ~loc x
     | _ -> raise (Failure "error in state 41")
 
@@ -1138,12 +1177,13 @@ module States = struct
     match lookahead () with
     (* Shift *)
     | DPREC ->
-      let loc = shift () :: loc in
+      let _, _l = shift () in
+      let loc = loc_shift ~loc _l in
       state_43 ~loc _c1_production_prec
     (* Reduce *)
     | CODE _ ->
       let x = Actions.a20_production_prec ~loc ()
-      and loc = reduce_loc ~loc 0 in
+      and loc = loc_reduce ~loc 0 in
       _c1_production_prec ~loc x
     | _ -> raise (Failure "error in state 42")
 
@@ -1168,11 +1208,13 @@ module States = struct
     match lookahead () with
     (* Shift *)
     | ID x ->
-      let loc = shift () :: loc in
+      let _, _l = shift () in
+      let loc = loc_shift ~loc _l in
       state_13 ~loc x _c2_id
     (* Shift *)
     | TID x ->
-      let loc = shift () :: loc in
+      let _, _l = shift () in
+      let loc = loc_shift ~loc _l in
       state_4 ~loc x _c3_tid
     | _ -> raise (Failure "error in state 43")
 
@@ -1187,7 +1229,7 @@ module States = struct
     (* Reduce *)
     | CODE _ ->
       let x = Actions.a19_production_prec ~loc a0_symbol ()
-      and loc = reduce_loc ~loc 2 in
+      and loc = loc_reduce ~loc 2 in
       _c0_production_prec ~loc x
     | _ -> raise (Failure "error in state 44")
 
@@ -1204,7 +1246,8 @@ module States = struct
     match lookahead () with
     (* Shift *)
     | CODE x ->
-      let loc = shift () :: loc in
+      let _, _l = shift () in
+      let loc = loc_shift ~loc _l in
       state_46 ~loc x _c1_code
     | _ -> raise (Failure "error in state 45")
 
@@ -1219,7 +1262,7 @@ module States = struct
     (* Reduce *)
     | SEMI | BAR ->
       let x = Actions.a36_code ~loc a0_CODE ()
-      and loc = reduce_loc ~loc 1 in
+      and loc = loc_reduce ~loc 1 in
       _c0_code ~loc x
     | _ -> raise (Failure "error in state 46")
 
@@ -1234,7 +1277,7 @@ module States = struct
     (* Reduce *)
     | SEMI | BAR ->
       let x = Actions.a18_production ~loc a0_code a1_production_prec a2_producers ()
-      and loc = reduce_loc ~loc 3 in
+      and loc = loc_reduce ~loc 3 in
       _c0_production ~loc x
     | _ -> raise (Failure "error in state 47")
 
@@ -1268,16 +1311,18 @@ module States = struct
     match lookahead () with
     (* Shift *)
     | ID x ->
-      let loc = shift () :: loc in
+      let _, _l = shift () in
+      let loc = loc_shift ~loc _l in
       state_13 ~loc x _c4_id
     (* Shift *)
     | TID x ->
-      let loc = shift () :: loc in
+      let _, _l = shift () in
+      let loc = loc_shift ~loc _l in
       state_4 ~loc x _c5_tid
     (* Reduce *)
     | CODE _ | DPREC ->
       let x = Actions.a22_producers ~loc ()
-      and loc = reduce_loc ~loc 0 in
+      and loc = loc_reduce ~loc 0 in
       _c1_producers ~loc x
     | _ -> raise (Failure "error in state 48")
 
@@ -1292,7 +1337,7 @@ module States = struct
     (* Reduce *)
     | CODE _ | DPREC ->
       let x = Actions.a21_producers ~loc a0_producers a1_producer ()
-      and loc = reduce_loc ~loc 2 in
+      and loc = loc_reduce ~loc 2 in
       _c0_producers ~loc x
     | _ -> raise (Failure "error in state 49")
 
@@ -1307,7 +1352,7 @@ module States = struct
     (* Reduce *)
     | ID _ | TID _ | CODE _ | DPREC ->
       let x = Actions.a24_producer ~loc a0_symbol ()
-      and loc = reduce_loc ~loc 1 in
+      and loc = loc_reduce ~loc 1 in
       _c0_producer ~loc x
     | _ -> raise (Failure "error in state 50")
 
@@ -1323,12 +1368,13 @@ module States = struct
     match lookahead () with
     (* Shift *)
     | EQ ->
-      let loc = shift () :: loc in
+      let _, _l = shift () in
+      let loc = loc_shift ~loc _l in
       state_52 ~loc a0_id _c0_producer
     (* Reduce *)
     | ID _ | TID _ | CODE _ | DPREC ->
       let x = Actions.a31_symbol ~loc a0_id ()
-      and loc = reduce_loc ~loc 1 in
+      and loc = loc_reduce ~loc 1 in
       _c1_symbol ~loc x
     | _ -> raise (Failure "error in state 51")
 
@@ -1353,11 +1399,13 @@ module States = struct
     match lookahead () with
     (* Shift *)
     | ID x ->
-      let loc = shift () :: loc in
+      let _, _l = shift () in
+      let loc = loc_shift ~loc _l in
       state_13 ~loc x _c2_id
     (* Shift *)
     | TID x ->
-      let loc = shift () :: loc in
+      let _, _l = shift () in
+      let loc = loc_shift ~loc _l in
       state_4 ~loc x _c3_tid
     | _ -> raise (Failure "error in state 52")
 
@@ -1372,7 +1420,7 @@ module States = struct
     (* Reduce *)
     | ID _ | TID _ | CODE _ | DPREC ->
       let x = Actions.a23_producer ~loc a0_symbol a2_id ()
-      and loc = reduce_loc ~loc 3 in
+      and loc = loc_reduce ~loc 3 in
       _c0_producer ~loc x
     | _ -> raise (Failure "error in state 53")
 
@@ -1386,7 +1434,8 @@ module States = struct
     match lookahead () with
     (* Shift *)
     | SEMI ->
-      let loc = shift () :: loc in
+      let _, _l = shift () in
+      let loc = loc_shift ~loc _l in
       state_55 ~loc a0_rule_prods a2_id _c0_rule
     | _ -> raise (Failure "error in state 54")
 
@@ -1401,7 +1450,7 @@ module States = struct
     (* Reduce *)
     | ID _ | EOF ->
       let x = Actions.a13_rule ~loc a1_rule_prods a3_id ()
-      and loc = reduce_loc ~loc 4 in
+      and loc = loc_reduce ~loc 4 in
       _c0_rule ~loc x
     | _ -> raise (Failure "error in state 55")
 
@@ -1416,7 +1465,7 @@ module States = struct
     (* Reduce *)
     | SEMI ->
       let x = Actions.a15_rule_prods ~loc a0_productions ()
-      and loc = reduce_loc ~loc 1 in
+      and loc = loc_reduce ~loc 1 in
       _c0_rule_prods ~loc x
     | _ -> raise (Failure "error in state 56")
 
@@ -1435,12 +1484,13 @@ module States = struct
     match lookahead () with
     (* Shift *)
     | BAR ->
-      let loc = shift () :: loc in
+      let _, _l = shift () in
+      let loc = loc_shift ~loc _l in
       state_39 ~loc _c1_productions
     (* Reduce *)
     | SEMI ->
       let x = Actions.a17_productions ~loc ()
-      and loc = reduce_loc ~loc 0 in
+      and loc = loc_reduce ~loc 0 in
       _c1_productions ~loc x
     | _ -> raise (Failure "error in state 57")
 
@@ -1455,7 +1505,7 @@ module States = struct
     (* Reduce *)
     | SEMI ->
       let x = Actions.a14_rule_prods ~loc a0_productions a1_production ()
-      and loc = reduce_loc ~loc 2 in
+      and loc = loc_reduce ~loc 2 in
       _c0_rule_prods ~loc x
     | _ -> raise (Failure "error in state 58")
 
@@ -1489,32 +1539,38 @@ module States = struct
     match lookahead () with
     (* Shift *)
     | DTOKEN ->
-      let loc = shift () :: loc in
+      let _, _l = shift () in
+      let loc = loc_shift ~loc _l in
       state_3 ~loc _c2_decl
     (* Shift *)
     | DTYPE ->
-      let loc = shift () :: loc in
+      let _, _l = shift () in
+      let loc = loc_shift ~loc _l in
       state_11 ~loc _c2_decl
     (* Shift *)
     | DSTART ->
-      let loc = shift () :: loc in
+      let _, _l = shift () in
+      let loc = loc_shift ~loc _l in
       state_19 ~loc _c2_decl
     (* Shift *)
     | DLEFT ->
-      let loc = shift () :: loc in
+      let _, _l = shift () in
+      let loc = loc_shift ~loc _l in
       state_25 ~loc _c2_decl
     (* Shift *)
     | DRIGHT ->
-      let loc = shift () :: loc in
+      let _, _l = shift () in
+      let loc = loc_shift ~loc _l in
       state_27 ~loc _c2_decl
     (* Shift *)
     | DNONASSOC ->
-      let loc = shift () :: loc in
+      let _, _l = shift () in
+      let loc = loc_shift ~loc _l in
       state_29 ~loc _c2_decl
     (* Reduce *)
     | DSEP ->
       let x = Actions.a2_decls ~loc ()
-      and loc = reduce_loc ~loc 0 in
+      and loc = loc_reduce ~loc 0 in
       _c1_decls ~loc x
     | _ -> raise (Failure "error in state 59")
 
@@ -1529,7 +1585,7 @@ module States = struct
     (* Reduce *)
     | DSEP ->
       let x = Actions.a1_decls ~loc a0_decls a1_decl ()
-      and loc = reduce_loc ~loc 2 in
+      and loc = loc_reduce ~loc 2 in
       _c0_decls ~loc x
     | _ -> raise (Failure "error in state 60")
   ;;

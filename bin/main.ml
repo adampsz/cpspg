@@ -6,6 +6,7 @@ let grammar_kind = ref Cpspg.Types.LALR
 let codegen_line_directives = ref true
 let codegen_comments = ref false
 let codegen_readable_ids = ref false
+let codegen_locations = ref true
 
 let codegen_readable () =
   codegen_line_directives := false;
@@ -34,9 +35,9 @@ let specs =
     , Arg.Unit (fun _ -> grammar_kind := Cpspg.Types.LALR)
     , "Construct a LALR(1) automaton (default)" )
     (* Codegen options *)
-  ; ( "--no-positions"
-    , Arg.Unit (fun _ -> codegen_comments := false)
-    , "Disable $loc family of keywords and related code" )
+  ; ( "--no-locations"
+    , Arg.Unit (fun _ -> codegen_locations := false)
+    , "Disable family of $loc keywords and related code" )
   ; ( "--no-line-directives"
     , Arg.Unit (fun _ -> codegen_line_directives := false)
     , "Do not include line directives in generated code" )
@@ -70,7 +71,7 @@ let main () =
     let kind = !grammar_kind
 
     (* Codegen *)
-    let positions = !codegen_comments
+    let locations = !codegen_locations
     let line_directives = !codegen_line_directives
     let comments = !codegen_comments
     let readable_ids = !codegen_readable_ids

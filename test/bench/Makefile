@@ -25,7 +25,7 @@ Parser.menhir.ml: Parser.mly
 	rm $(basename $@).mli
 
 Parser.cpspg.ml: Parser.mly
-	dune exec -- cpspg $^ -o $@
+	dune exec -- cpspg --readable --no-locations $^ -o $@
 
 main.%.exe: Parser.%.ml Lexer.ml main.ml
 	cp Parser.$(*F).ml Parser.ml

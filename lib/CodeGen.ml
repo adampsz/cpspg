@@ -32,21 +32,22 @@ let state_lib =
   \    lexbuf_fallback_p := !lexbuf.lex_curr_p\n\
   \  ;;\n\n\
   \  let shift () =\n\
-  \    let loc, _ = Option.get !peeked in\n\
+  \    let sym = Option.get !peeked in\n\
   \    peeked := None;\n\
   \    lexbuf_fallback_p := !lexbuf.lex_curr_p;\n\
-  \    loc\n\
+  \    sym\n\
   \  ;;\n\n\
   \  let lookahead () =\n\
   \    match !peeked with\n\
-  \    | Some (_, tok) -> tok\n\
+  \    | Some (tok, _) -> tok\n\
   \    | None ->\n\
   \      let tok = !lexfun !lexbuf\n\
   \      and loc = !lexbuf.lex_start_p, !lexbuf.lex_curr_p in\n\
-  \      peeked := Some (loc, tok);\n\
+  \      peeked := Some (tok, loc);\n\
   \      tok\n\
   \  ;;\n\n\
-  \  let reduce_loc ~loc = function\n\
+  \  let loc_shift ~loc l = l :: loc\n\n\
+  \  let loc_reduce ~loc = function\n\
   \    | 0 -> (!lexbuf_fallback_p, !lexbuf_fallback_p) :: loc\n\
   \    | n ->\n\
   \      let rec skip n xs = if n = 0 then xs else skip (n - 1) (List.tl xs) in\n\
@@ -165,7 +166,7 @@ struct
   let write_goto_call f state sym =
     let closure = state.s_kernel @ state.s_closure in
     write_state_id f (SymbolMap.find sym state.s_goto);
-    Format.fprintf f " ~loc";
+    if S.locations then Format.fprintf f " ~loc";
     if symbol_has_value sym then Format.fprintf f " x";
     write_arg_ids f (List.find (shifts_group sym) closure).g_prefix;
     write_cont_ids f (shifts_group sym) (state.s_kernel @ state.s_closure)
@@ -175,8 +176,9 @@ struct
     let sym = NTerm group.g_symbol in
     Format.fprintf
       f
-      "%t ~loc x = %t"
+      "%t%s x = %t"
       (fun f -> write_cont_id f group idx)
+      (if S.locations then " ~loc" else "")
       (fun f -> write_goto_call f state sym)
   ;;
 
@@ -188,37 +190,44 @@ struct
       let action = IntMap.find i_action A.automaton.a_actions in
       Format.fprintf
         f
-        " Actions.%t ~loc%t ()"
+        " Actions.%t%s%t ()"
         (fun f -> write_semantic_action_id f action i_action)
+        (if S.locations then " ~loc" else "")
         (fun f -> write_arg_ids f group.g_prefix)
   ;;
 
   let write_action_shift f state sym =
+    let write_loc_update f = Format.fprintf f " in\n      let loc = loc_shift ~loc _l" in
     if S.comments then Format.fprintf f "    (* Shift *)\n";
     Format.fprintf
       f
-      "    | %t ->\n      let loc = shift () :: loc in\n      %t\n"
+      "    | %t ->\n      let _, _l = shift ()%t in\n      %t\n"
       (fun f -> write_term_pattern f true sym)
+      (fun f -> if S.locations then write_loc_update f)
       (fun f -> write_goto_call f state (Term sym))
+  ;;
+
+  let write_action_reduce f state lookahead i j =
+    let write_loc_update f n =
+      Format.fprintf f "\n      and loc = loc_reduce ~loc %d" n
+    in
+    if S.comments then Format.fprintf f "    (* Reduce *)\n";
+    let group = List.nth (state.s_kernel @ state.s_closure) i in
+    let n = List.length group.g_prefix
+    and item = List.nth group.g_items j in
+    Format.fprintf
+      f
+      "    %t->\n      let x =%t%t in\n      %t%s x\n"
+      (fun f -> write_term_patterns f lookahead)
+      (fun f -> write_semantic_action_call f group item)
+      (fun f -> if S.locations then write_loc_update f n)
+      (fun f -> write_cont_id f group i)
+      (if S.locations then " ~loc" else "")
   ;;
 
   let write_action f state lookahead = function
     | Shift -> TermSet.iter (write_action_shift f state) lookahead
-    | Reduce (i, j) ->
-      if S.comments then Format.fprintf f "    (* Reduce *)\n";
-      let group = List.nth (state.s_kernel @ state.s_closure) i in
-      let n = List.length group.g_prefix
-      and item = List.nth group.g_items j in
-      Format.fprintf
-        f
-        "    %t->\n\
-        \      let x =%t\n\
-        \      and loc = reduce_loc ~loc %d in\n\
-        \      %t ~loc x\n"
-        (fun f -> write_term_patterns f lookahead)
-        (fun f -> write_semantic_action_call f group item)
-        n
-        (fun f -> write_cont_id f group i)
+    | Reduce (i, j) -> write_action_reduce f state lookahead i j
   ;;
 
   let write_actions f id state =
@@ -302,7 +311,7 @@ struct
       | None -> Format.fprintf f " _arg%d" (List.length action.sa_args - i)
     in
     write_semantic_action_id f action id;
-    Format.fprintf f " ~loc:_loc";
+    if S.locations then Format.fprintf f " ~loc:_loc";
     iteri2 iter (List.rev item.i_suffix) (List.rev action.sa_args);
     Format.fprintf f " () = %t" (fun f -> write_semantic_action_code f action)
   ;;
@@ -322,8 +331,9 @@ struct
   let write_state_sig f id state =
     Format.fprintf
       f
-      "%t ~loc%t%t =\n"
+      "%t%s%t%t =\n"
       (fun f -> write_state_id f id)
+      (if S.locations then " ~loc" else "")
       (fun f -> write_arg_ids f (List.hd state.s_kernel).g_prefix)
       (fun f -> write_cont_ids f (fun _ -> true) state.s_kernel)
   ;;
@@ -351,10 +361,11 @@ struct
       f
       "let %s lexfun lexbuf =\n\
       \  States.setup lexfun lexbuf;\n\
-      \  States.%t ~loc:[] (fun x -> x)\n\
+      \  States.%t%s (fun x -> x)\n\
        ;;\n"
       (nterm_name symbol)
       (fun f -> write_state_id f id)
+      (if S.locations then " ~loc:[]" else "")
   ;;
 
   let write f =

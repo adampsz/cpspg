@@ -10,7 +10,7 @@ module type Settings = sig
   val kind : kind
 
   (* Codegen *)
-  val positions : bool
+  val locations : bool
   val line_directives : bool
   val comments : bool
   val readable_ids : bool
