@@ -4,9 +4,9 @@ MENHIRFLAGS=-O 0
 
 .PHONY: bench
 bench: main.yacc.exe main.menhir.exe main.cpspg.exe
-	/usr/bin/time ./main.yacc.exe
-	/usr/bin/time ./main.menhir.exe
-	/usr/bin/time ./main.cpspg.exe
+	@echo -n 'ocamlyacc: '; ./main.yacc.exe
+	@echo -n 'menhir:    '; ./main.menhir.exe
+	@echo -n 'cpspg:     '; ./main.cpspg.exe
 
 .PHONY: clean
 clean:

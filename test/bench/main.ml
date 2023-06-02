@@ -32,12 +32,30 @@ let lexfun_of_list xs =
       x
 ;;
 
-let _ =
-  Random.init (Unix.gettimeofday () |> int_of_float);
-  let input = gen_input 25 in
+let gen_lex s =
+  let input = gen_input s in
   let lexbuf = Lexing.from_string input in
   let tokens = read_to_end Lexer.token lexbuf in
-  for i = 1 to 100 do
-    Parser.main_dummy (lexfun_of_list tokens) lexbuf |> ignore
-  done
+  fun () -> lexfun_of_list tokens, lexbuf
+;;
+
+let n = 100 (* Number of different inputs *)
+let m = 10 (* Number of iterations per input *)
+let s = 25 (* Depth of input expression *)
+
+let _ =
+  Random.init (Unix.gettimeofday () |> int_of_float);
+  let total = ref 0.0 in
+  for i = 1 to n do
+    let lex = gen_lex s in
+    let start = Unix.gettimeofday () in
+    for j = 1 to m do
+      let lexfun, lexbuf = lex () in
+      Parser.main lexfun lexbuf |> Parser.blackbox |> ignore
+    done;
+    let finish = Unix.gettimeofday () in
+    total := !total +. (finish -. start);
+    Printf.eprintf ".%!"
+  done;
+  Printf.printf " %fs (%fs/it)\n" !total (!total /. float_of_int (n * m))
 ;;
