@@ -15,4 +15,3 @@ rule token = parse
   | ')' { RPAREN }
   | eof { EOF }
   | _   { failwith "error" }
-

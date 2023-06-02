@@ -55,6 +55,14 @@ let state_lib =
   \  ;;\n\n"
 ;;
 
+let iteri2 f xs ys =
+  let f i x y =
+    f i x y;
+    i + 1
+  in
+  List.fold_left2 f 0 xs ys |> ignore
+;;
+
 module Make (S : Types.Settings) (G : Types.Grammar) (A : Types.Automaton) : Types.Code =
 struct
   open Automaton
@@ -261,7 +269,11 @@ struct
       and ofs = l.pos_cnum - (fst action.sa_code.loc).pos_cnum in
       write_string f { data = String.sub (fst code.data) ofs len; loc = l, r }
     and get_impl = function
-      | Grammar.KwI i -> Printf.sprintf "_a%d" i
+      | Grammar.KwArg i ->
+        (match List.nth_opt action.sa_args (i - 1) with
+         | Some (Some a) -> a
+         | Some None -> Printf.sprintf "_arg%d" i
+         | None -> "()")
       | Grammar.KwStartpos -> Printf.sprintf "_kw_startpos ~loc:_loc %d" n
       | Grammar.KwEndpos -> Printf.sprintf "_kw_endpos ~loc:_loc %d" n
       | Grammar.KwSymbolstartpos -> Printf.sprintf "_kw_symbolstartpos ~loc:_loc %d" n
@@ -279,19 +291,19 @@ struct
         Format.fprintf f "(%s) " impl;
         loop (snd loc) kws
     in
-    loop (fst action.sa_code.loc) (snd action.sa_code.data)
+    loop (fst action.sa_code.loc) (snd action.sa_code.data |> List.rev)
   ;;
 
   let write_semantic_action f id action =
     let item = List.nth (G.group action.sa_symbol).g_items action.sa_index in
-    let iter s = function
+    let iter i s = function
       | _ when symbol_has_value s = false -> ()
       | Some a -> Format.fprintf f " %s" a
-      | None -> Format.fprintf f " _"
+      | None -> Format.fprintf f " _arg%d" (List.length action.sa_args - i)
     in
     write_semantic_action_id f action id;
     Format.fprintf f " ~loc:_loc";
-    List.iter2 iter (List.rev item.i_suffix) (List.rev action.sa_args);
+    iteri2 iter (List.rev item.i_suffix) (List.rev action.sa_args);
     Format.fprintf f " () = %t" (fun f -> write_semantic_action_code f action)
   ;;
 

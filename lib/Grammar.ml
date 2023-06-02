@@ -6,7 +6,7 @@ type 'a node =
   }
 
 type keyword =
-  | KwI of int
+  | KwArg of int
   | KwStartpos
   | KwEndpos
   | KwSymbolstartpos

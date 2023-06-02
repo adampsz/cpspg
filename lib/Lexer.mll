@@ -1,41 +1,46 @@
 {
-  open Parser
-  open Grammar
-  open Lexing
 
-  let add_c = Buffer.add_char
-  let add_s = Buffer.add_string
+open Parser
+open Grammar
+open Lexing
 
-  let update_loc lexbuf file line  =
-    let pos = lexbuf.lex_curr_p in
-    let file = Option.value ~default:pos.pos_fname file in
-    lexbuf.lex_curr_p <- { pos with
-      pos_fname = file;
-      pos_lnum = line;
-      pos_bol = pos.pos_cnum;
-    }
+let add_c = Buffer.add_char
+let add_s = Buffer.add_string
 
-  let buffered pre f lexbuf =
-    let pos = lexbuf.lex_start_p in
-    let buf = Buffer.create 64 in
-    add_s buf pre;
-    let res = f buf lexbuf in
-    lexbuf.lex_start_p <- pos;
-    res
+let update_loc lexbuf file line =
+  let pos = lexbuf.lex_curr_p in
+  let file = Option.value ~default:pos.pos_fname file in
+  lexbuf.lex_curr_p
+    <- { pos with pos_fname = file; pos_lnum = line; pos_bol = pos.pos_cnum }
+;;
 
-  let keyword_of_string = function
-    | "$startpos" -> KwStartpos
-    | "$endpos" -> KwEndpos
-    | "$symbolstartpos" -> KwSymbolstartpos
-    | "$startofs" -> KwStartofs
-    | "$endofs" -> KwEndofs
-    | "$symbolstartofs" -> KwSymbolstartofs
-    | "$loc" -> KwLoc
-    | "$sloc" -> KwSloc
-    | _ -> assert false
+let sync buf lexbuf = Lexing.lexeme lexbuf |> Buffer.add_string buf
+
+let wrapped pre post f lexbuf =
+  let buf = Buffer.create 64
+  and pos = lexbuf.lex_start_p in
+  Buffer.add_string buf pre;
+  let res = f (sync buf) lexbuf in
+  Buffer.add_string buf post;
+  lexbuf.lex_start_p <- pos;
+  Buffer.contents buf, res
+;;
+
+let keyword_of_string = function
+  | "$startpos" -> KwStartpos
+  | "$endpos" -> KwEndpos
+  | "$symbolstartpos" -> KwSymbolstartpos
+  | "$startofs" -> KwStartofs
+  | "$endofs" -> KwEndofs
+  | "$symbolstartofs" -> KwSymbolstartofs
+  | "$loc" -> KwLoc
+  | "$sloc" -> KwSloc
+  | _ -> assert false
+;;
+
 }
 
-let newline = ('\013'* '\010')
+let newline = '\r'* '\n'
 let blank = [' ' '\009' '\012']
 
 let lowercase = ['a'-'z' '\223'-'\246' '\248'-'\255' '_']
@@ -47,11 +52,11 @@ rule main = parse
   | blank   { main lexbuf }
 
   | "#" blank* (['0'-'9']+ as num) blank*
-      ('"' ([^ '\010' '\013' '"']* as name) '"')?
-      [^ '\010' '\013']* newline
+      ('"' ([^ '\r' '\n' '"']* as name) '"')?
+      [^ '\r' '\n']* newline
     { update_loc lexbuf name (int_of_string num); main lexbuf }
 
-  | "(*" { comment 0 lexbuf; main lexbuf }
+  | "(*" { wrapped "" "" (comment 0) lexbuf |> ignore; main lexbuf }
 
   | "%token"    { DTOKEN}
   | "%term"     { DTOKEN }
@@ -78,35 +83,27 @@ rule main = parse
   | lowercase identchar* as i { ID i }
   | uppercase identchar* as i { TID i }
 
-  | '<'  { TYPE (buffered " "  (tag 0) lexbuf) }
-  | "{"  { CODE (buffered " "  (code "}" 0 []) lexbuf) }
-  | "%{" { CODE (buffered "  " (code "%}" 0 []) lexbuf) }
+  | '<'  { TYPE (wrapped " " " " (tag 0) lexbuf |> fst) }
+  | "{"  { CODE (wrapped " " " " (code "}" 0 []) lexbuf) }
+  | "%{" { CODE (wrapped "  " "  " (code "%}" 0 []) lexbuf) }
 
   | eof { EOF }
 
-and tag depth buf = parse
-  | ['[' '('] as c { add_c buf c; tag (depth + 1) buf lexbuf }
-  | [']' ')'] as c { add_c buf c; tag (depth - 1) buf lexbuf }
+and tag depth eat = parse
+  | '[' | '(' { eat lexbuf; tag (depth + 1) eat lexbuf }
+  | ']' | ')' { eat lexbuf; tag (depth - 1) eat lexbuf }
 
-  | "->" as c { add_s buf c; tag depth buf lexbuf }
-
-  | '>' as c  {
-    if depth > 0
-    then (add_c buf c; tag depth buf lexbuf)
-    else (add_c buf ' '; Buffer.contents buf) }
+  | "->" { eat lexbuf; tag depth eat lexbuf }
+  | '>'  { if depth > 0 then (eat lexbuf; tag depth eat lexbuf) }
   
-  | newline as c { new_line lexbuf; add_s buf c; tag depth buf lexbuf }
-  | eof          { failwith "unterminated type tag" }
-  | _ as c       { add_c buf c; tag depth buf lexbuf }
+  | newline { new_line lexbuf; eat lexbuf; tag depth eat lexbuf }
+  | eof     { failwith "unterminated type tag" }
+  | _       { eat lexbuf; tag depth eat lexbuf }
 
-and code e depth kw buf = parse
-  | ['[' '(' '{'] as c { add_c buf c; code e (depth + 1) kw buf lexbuf }
-  | [']' ')'] as c { add_c buf c; code e (depth - 1) kw buf lexbuf }
-
-  | "}" | "%}" as c
-    { if depth > 0 || c <> e
-      then (add_s buf c; code e (depth - 1) kw buf lexbuf)
-      else (add_s buf (String.make (String.length c) ' '); Buffer.contents buf, kw) }
+and code e depth kw eat = parse
+  | '[' | '(' | '{' { eat lexbuf; code e (depth + 1) kw eat lexbuf }
+  | ']' | ')'       { eat lexbuf; code e (depth - 1) kw eat lexbuf }
+  | "}" | "%}" as c { if depth > 0 || c <> e then (eat lexbuf; code e (depth - 1) kw eat lexbuf) else kw }
 
   | "$startpos"
   | "$endpos"
@@ -116,29 +113,36 @@ and code e depth kw buf = parse
   | "$symbolstartofs"
   | "$loc"
   | "$sloc" as k
-    { 
-      add_s buf k;
-      let k = keyword_of_string k, (lexbuf.lex_start_p, lexbuf.lex_curr_p) in
-      code e depth (k :: kw) buf lexbuf }
+    { let k = keyword_of_string k, (lexbuf.lex_start_p, lexbuf.lex_curr_p) in
+      eat lexbuf;
+      code e depth (k :: kw) eat lexbuf }
 
-  | '"' as c { add_c buf c; string buf lexbuf |> ignore; add_c buf c; code e depth kw buf lexbuf }
+  | '$' (['0'-'9']+ as i)
+    { let k = KwArg (int_of_string i), (lexbuf.lex_start_p, lexbuf.lex_curr_p) in
+      eat lexbuf;
+      code e depth (k :: kw) eat lexbuf }
 
-  | newline as c { new_line lexbuf; add_s buf c; code e depth kw buf lexbuf }
-  | eof          { failwith "unterminated code" }
-  | _ as c       { add_c buf c; code e depth kw buf lexbuf }
+  | '"'  { eat lexbuf; string eat lexbuf; eat lexbuf; code e depth kw eat lexbuf }
+  | "(*" { eat lexbuf; comment 0 eat lexbuf; eat lexbuf; code e depth kw eat lexbuf }
 
-and string buf = parse
-  | "\\\\" as c { add_s buf c; string buf lexbuf }
-  | "\\\"" as c { add_s buf c; string buf lexbuf }
-  | _ as c      { add_c buf c; string buf lexbuf }
-  | '"' { Buffer.contents buf }
+  | newline { new_line lexbuf; eat lexbuf; code e depth kw eat lexbuf }
+  | eof     { failwith "unterminated code" }
+  | _       { eat lexbuf; code e depth kw eat lexbuf }
 
-and comment depth = parse
-  | "(*" { comment (depth + 1) lexbuf }
-  | "*)" { if depth > 0 then comment (depth - 1) lexbuf }
+and string eat = parse
+  | "\\\\"  { eat lexbuf; string eat lexbuf }
+  | "\\\""  { eat lexbuf; string eat lexbuf }
+  | '"'     { }
+  | newline { new_line lexbuf; eat lexbuf; string eat lexbuf }
+  | eof     { failwith "unterminated string" }
+  | _       { eat lexbuf; string eat lexbuf }
 
-  | "\"" { string (Buffer.create 0) lexbuf |> ignore; comment depth lexbuf }
+and comment depth eat = parse
+  | "(*" { eat lexbuf; comment (depth + 1) eat lexbuf }
+  | "*)" { if depth > 0 then (eat lexbuf; comment (depth - 1) eat lexbuf) }
 
-  | newline { new_line lexbuf; comment depth lexbuf }
-  | eof     { failwith "unterminated comment" }
-  | _       { comment depth lexbuf }
+  | '"' { eat lexbuf; string eat lexbuf; eat lexbuf; comment depth eat lexbuf }
+
+  | newline  { new_line lexbuf; eat lexbuf; comment depth eat lexbuf }
+  | eof      { failwith "unterminated comment" }
+  | _        { eat lexbuf; comment depth eat lexbuf }
