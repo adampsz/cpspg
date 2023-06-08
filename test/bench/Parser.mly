@@ -9,9 +9,11 @@ let blackbox2 a b = blackbox a lxor blackbox b
 
 %token<int> INT
 %token PLUS MINUS SLASH STAR PERCENT CARET LPAREN RPAREN EOF
-%type<int> main expr
-%type<unit> main_dummy dummy
-%start main main_dummy
+%type<int> math
+%type<unit> dyck leftrec rightrec
+%type<int> expr
+%type<unit> parens left right
+%start math dyck leftrec rightrec
 
 %left PLUS MINUS
 %left SLASH STAR PERCENT
@@ -20,7 +22,7 @@ let blackbox2 a b = blackbox a lxor blackbox b
 
 %%
 
-main: expr EOF { blackbox $1 };
+math: expr EOF { blackbox $1 };
 
 expr:
     | expr PLUS    expr { blackbox2 $1 $3 }
@@ -36,18 +38,22 @@ expr:
     | INT                 { blackbox $1 }
 ;
 
-main_dummy: dummy EOF { () };
+dyck: parens EOF { () };
 
-dummy:
-    | dummy PLUS    dummy { () }
-    | dummy MINUS   dummy { () }
-    | dummy STAR    dummy { () }
-    | dummy SLASH   dummy { () }
-    | dummy PERCENT dummy { () }
-    | dummy CARET   dummy { () }
+parens:
+    |                             { () }
+    | LPAREN parens RPAREN parens { () }
+;
 
-    | MINUS dummy %prec UMINUS { () }
-    
-    | LPAREN dummy RPAREN  { () }
-    | INT                 { () }
+leftrec:  left  EOF { () };
+rightrec: right EOF { () };
+
+left:
+    |             { () }
+    | left PLUS   { () }
+;
+
+right:
+    |             { () }
+    | PLUS right  { () }
 ;

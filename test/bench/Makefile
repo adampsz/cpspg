@@ -4,9 +4,22 @@ MENHIRFLAGS=-O 0
 
 .PHONY: bench
 bench: main.yacc.exe main.menhir.exe main.cpspg.exe
-	@echo -n 'ocamlyacc: '; ./main.yacc.exe
-	@echo -n 'menhir:    '; ./main.menhir.exe
-	@echo -n 'cpspg:     '; ./main.cpspg.exe
+	@echo 'math:'
+	@echo -n '  ocamlyacc: '; ./main.yacc.exe math
+	@echo -n '  menhir:    '; ./main.menhir.exe math
+	@echo -n '  cpspg:     '; ./main.cpspg.exe math
+	@echo 'dyck:'
+	@echo -n '  ocamlyacc: '; ./main.yacc.exe dyck
+	@echo -n '  menhir:    '; ./main.menhir.exe dyck
+	@echo -n '  cpspg:     '; ./main.cpspg.exe dyck
+	@echo 'leftrec:'
+	@echo -n '  ocamlyacc: '; ./main.yacc.exe leftrec
+	@echo -n '  menhir:    '; ./main.menhir.exe leftrec
+	@echo -n '  cpspg:     '; ./main.cpspg.exe leftrec
+	@echo 'rightrec:'
+	@echo -n '  ocamlyacc: '; ./main.yacc.exe rightrec
+	@echo -n '  menhir:    '; ./main.menhir.exe rightrec
+	@echo -n '  cpspg:     '; ./main.cpspg.exe rightrec
 
 .PHONY: clean
 clean:
