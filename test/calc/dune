@@ -1,10 +1,10 @@
 (executable
- (public_name calc)
- (name main))
+ (name calc))
 
 (ocamllex Lexer)
 
 (rule
+ ; Change this rule to use a different parser
  (copy ParserPrec.ml Parser.ml))
 
 (rule

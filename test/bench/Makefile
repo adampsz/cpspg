@@ -1,5 +1,5 @@
 OCAMLC=ocamlopt
-OCAMLFLAGS=-O3
+OCAMLFLAGS=-O3 -unbox-closures
 MENHIRFLAGS=-O 0
 
 .PHONY: bench
