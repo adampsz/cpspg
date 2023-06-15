@@ -22,7 +22,7 @@ module type Settings = sig
 end
 
 module type Ast = sig
-  val ast : Grammar.t
+  val ast : Ast.t
 end
 
 module type Grammar = sig

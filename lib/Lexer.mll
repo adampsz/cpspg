@@ -1,7 +1,7 @@
 {
 
+open Ast
 open Parser
-open Grammar
 open Lexing
 
 let add_c = Buffer.add_char

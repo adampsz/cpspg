@@ -23,7 +23,7 @@ module Run (S : Types.Settings) (A : Types.Ast) : Types.Grammar = struct
       else Hashtbl.add term name.data (Hashtbl.length term |> Terminal.of_int, info)
     in
     let iter_decl = function
-      | Grammar.DeclToken (ty, ids) -> List.iter (iter_token ty) ids
+      | Ast.DeclToken (ty, ids) -> List.iter (iter_token ty) ids
       | _ -> ()
     in
     List.iter iter_decl A.ast.decls
@@ -32,7 +32,7 @@ module Run (S : Types.Settings) (A : Types.Ast) : Types.Grammar = struct
   (* Define non-terminals *)
   let _ =
     let iter_rule rule =
-      let name = rule.Grammar.id in
+      let name = rule.Ast.id in
       let info = { ni_name = name; ni_starting = false } in
       if Hashtbl.mem nterm name.data
       then S.report_warn ~loc:name.loc "duplicate non-terminal symbol %s" name.data
@@ -52,7 +52,7 @@ module Run (S : Types.Settings) (A : Types.Ast) : Types.Grammar = struct
       | None -> S.report_err ~loc:name.loc "unknown non-terminal symbol %s" name.data
     in
     let iter_decl = function
-      | Grammar.DeclStart (_, ids) -> List.iter iter_start ids
+      | Ast.DeclStart (_, ids) -> List.iter iter_start ids
       | _ -> ()
     in
     List.iter iter_decl A.ast.decls
@@ -63,8 +63,8 @@ module Run (S : Types.Settings) (A : Types.Ast) : Types.Grammar = struct
     let iter_sym p sym =
       let info, sym =
         match sym with
-        | Grammar.Term t -> Hashtbl.find_opt term t.data, t
-        | Grammar.NTerm n -> None, n
+        | Ast.Term t -> Hashtbl.find_opt term t.data, t
+        | Ast.NTerm n -> None, n
       in
       match info with
       | None ->
@@ -78,9 +78,9 @@ module Run (S : Types.Settings) (A : Types.Ast) : Types.Grammar = struct
         Hashtbl.replace term sym.data (id, { info with ti_prec = Some p })
     in
     let iter i = function
-      | Grammar.DeclLeft xs -> List.iter (iter_sym ((i * 2) + 1, i * 2)) xs
-      | Grammar.DeclRight xs -> List.iter (iter_sym (i * 2, (i * 2) + 1)) xs
-      | Grammar.DeclNonassoc xs -> List.iter (iter_sym (i * 2, i * 2)) xs
+      | Ast.DeclLeft xs -> List.iter (iter_sym ((i * 2) + 1, i * 2)) xs
+      | Ast.DeclRight xs -> List.iter (iter_sym (i * 2, (i * 2) + 1)) xs
+      | Ast.DeclNonassoc xs -> List.iter (iter_sym (i * 2, i * 2)) xs
       | _ -> ()
     in
     List.iteri iter A.ast.decls
@@ -108,18 +108,18 @@ module Run (S : Types.Settings) (A : Types.Ast) : Types.Grammar = struct
   ;;
 
   let tr_symbol = function
-    | Grammar.Term t -> tr_term t
-    | Grammar.NTerm n -> tr_nterm n
+    | Ast.Term t -> tr_term t
+    | Ast.NTerm n -> tr_nterm n
   ;;
 
-  let tr_symbols p = List.map (fun p -> tr_symbol p.Grammar.actual) p.Grammar.prod
+  let tr_symbols p = List.map (fun p -> tr_symbol p.Ast.actual) p.Ast.prod
 
   let get_precedence symbols sym =
     let sym_prec sym =
       let id =
         match sym with
-        | Grammar.Term t -> t
-        | Grammar.NTerm n -> n
+        | Ast.Term t -> t
+        | Ast.NTerm n -> n
       in
       let prec =
         match Hashtbl.find_opt term id.data with
@@ -143,11 +143,11 @@ module Run (S : Types.Settings) (A : Types.Ast) : Types.Grammar = struct
 
   let tr_action p symbol index =
     let id = function
-      | { Grammar.id = Some id; Grammar.actual = _; _ } -> Some id.data
-      | { Grammar.id = None; _ } -> None
+      | { Ast.id = Some id; Ast.actual = _; _ } -> Some id.data
+      | { Ast.id = None; _ } -> None
     in
-    let sa_code = p.Grammar.action
-    and sa_args = List.map id p.Grammar.prod in
+    let sa_code = p.Ast.action
+    and sa_args = List.map id p.Ast.prod in
     { sa_symbol = symbol; sa_index = index; sa_args; sa_code }
   ;;
 
@@ -161,12 +161,12 @@ module Run (S : Types.Settings) (A : Types.Ast) : Types.Grammar = struct
     IntMap.add id action actions, item :: items, i + 1
   ;;
 
-  let compare_prod_length a b = List.length b.Grammar.prod - List.length a.Grammar.prod
+  let compare_prod_length a b = List.length b.Ast.prod - List.length a.Ast.prod
 
   (** Create item group from given rule `rule`, while registering all its actions in `actions`,
       then add group to `groups`. *)
   let fold_rule actions groups sym rule =
-    let prods = List.sort compare_prod_length rule.Grammar.prods in
+    let prods = List.sort compare_prod_length rule.Ast.prods in
     let actions, items, _ = List.fold_left (fold_prod sym) (actions, [], 0) prods in
     let group =
       { g_symbol = sym
@@ -180,12 +180,12 @@ module Run (S : Types.Settings) (A : Types.Ast) : Types.Grammar = struct
   ;;
 
   (** `actions` is a map from action id to semantic action, for all semantic actions
-        defined in the grammar.
+        defined in the Ast.
       `groups` is a map from nonterminal id to a item group in a form { X → ε · β1, …, βn },
         where X → β1, …, X → βn are producions from grammar *)
   let actions, groups =
     let fold (actions, groups) rule =
-      let sym, _ = Hashtbl.find nterm rule.Grammar.id.data in
+      let sym, _ = Hashtbl.find nterm rule.Ast.id.data in
       if NTermMap.mem sym groups
       then actions, groups
       else fold_rule actions groups sym rule

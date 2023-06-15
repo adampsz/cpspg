@@ -40,9 +40,9 @@ module SymbolMap = Map.Make (Symbol)
 module TermSet = Set.Make (Terminal)
 module IntMap = Map.Make (Int)
 
-type loc = Grammar.loc
+type loc = Ast.loc
 
-type 'a node = 'a Grammar.node =
+type 'a node = 'a Ast.node =
   { loc : loc
   ; data : 'a
   }
@@ -74,7 +74,7 @@ type semantic_action =
   { sa_symbol : Nonterminal.t
   ; sa_index : int
   ; sa_args : string option list
-  ; sa_code : Grammar.code node
+  ; sa_code : Ast.code node
   }
 
 type action =

@@ -1,6 +1,6 @@
 %{
 
-open Grammar
+open Ast
 
 let mknode ~loc data = { loc; data }
 
