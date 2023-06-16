@@ -58,6 +58,9 @@ rule main = parse
 
   | "(*" { wrapped "" "" (comment 0) lexbuf |> ignore; main lexbuf }
 
+  | "/*" { ccomment lexbuf; main lexbuf }
+  | "//" { ccomment_line lexbuf; main lexbuf }
+
   | "%token"    { DTOKEN}
   | "%term"     { DTOKEN }
   | "%type"     { DTYPE }
@@ -146,3 +149,13 @@ and comment depth eat = parse
   | newline  { new_line lexbuf; eat lexbuf; comment depth eat lexbuf }
   | eof      { failwith "unterminated comment" }
   | _        { eat lexbuf; comment depth eat lexbuf }
+
+and ccomment = parse
+  | "*/" { }
+  | eof  { failwith "unterminated comment" }
+  | _    { ccomment lexbuf }
+
+and ccomment_line = parse
+  | "\n" { }
+  | eof  { failwith "unterminated comment" }
+  | _    { ccomment_line lexbuf }
