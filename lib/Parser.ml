@@ -6,6 +6,8 @@ open Ast
 
 let mknode ~loc data = { loc; data }
 
+exception Error
+
 type token =
   | TYPE of (string)
   | TID of (string)
@@ -140,7 +142,7 @@ module States = struct
       let _, _l = shift () in
       let loc = loc_shift ~loc _l in
       state_1 ~loc x _c1_hcode
-    | _ -> raise (Failure "error in state 0")
+    | _ -> raise Error
 
   (* ITEMS:
        hcode → CODE . 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
@@ -155,7 +157,7 @@ module States = struct
       let x = Actions.a37_hcode ~loc a0_CODE ()
       and loc = loc_reduce ~loc 1 in
       _c0_hcode ~loc x
-    | _ -> raise (Failure "error in state 1")
+    | _ -> raise Error
 
   (* ITEMS:
        grammar' → hcode . decls DSEP rules EOF
@@ -220,7 +222,7 @@ module States = struct
       let x = Actions.a2_decls ~loc ()
       and loc = loc_reduce ~loc 0 in
       _c1_decls ~loc x
-    | _ -> raise (Failure "error in state 2")
+    | _ -> raise Error
 
   (* ITEMS:
        decl → DTOKEN . tp tids 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
@@ -258,7 +260,7 @@ module States = struct
       let x = Actions.a28_tids ~loc ()
       and loc = loc_reduce ~loc 0 in
       _c1_tids ~loc x
-    | _ -> raise (Failure "error in state 3")
+    | _ -> raise Error
 
   (* ITEMS:
        tid → TID . 		/ ID, TID, CODE, DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DPREC, DSEP
@@ -273,7 +275,7 @@ module States = struct
       let x = Actions.a34_tid ~loc a0_TID ()
       and loc = loc_reduce ~loc 1 in
       _c0_tid ~loc x
-    | _ -> raise (Failure "error in state 4")
+    | _ -> raise Error
 
   (* ITEMS:
        tp → TYPE . 		/ ID, TID, DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
@@ -288,7 +290,7 @@ module States = struct
       let x = Actions.a35_tp ~loc a0_TYPE ()
       and loc = loc_reduce ~loc 1 in
       _c0_tp ~loc x
-    | _ -> raise (Failure "error in state 5")
+    | _ -> raise Error
 
   (* ITEMS:
        decl → DTOKEN tids . 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
@@ -303,7 +305,7 @@ module States = struct
       let x = Actions.a6_decl ~loc a0_tids ()
       and loc = loc_reduce ~loc 2 in
       _c0_decl ~loc x
-    | _ -> raise (Failure "error in state 6")
+    | _ -> raise Error
 
   (* ITEMS:
        tids → tid . tids 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
@@ -331,7 +333,7 @@ module States = struct
       let x = Actions.a28_tids ~loc ()
       and loc = loc_reduce ~loc 0 in
       _c1_tids ~loc x
-    | _ -> raise (Failure "error in state 7")
+    | _ -> raise Error
 
   (* ITEMS:
        tids → tid tids . 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
@@ -346,7 +348,7 @@ module States = struct
       let x = Actions.a27_tids ~loc a0_tids a1_tid ()
       and loc = loc_reduce ~loc 2 in
       _c0_tids ~loc x
-    | _ -> raise (Failure "error in state 8")
+    | _ -> raise Error
 
   (* ITEMS:
        decl → DTOKEN tp . tids 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
@@ -374,7 +376,7 @@ module States = struct
       let x = Actions.a28_tids ~loc ()
       and loc = loc_reduce ~loc 0 in
       _c1_tids ~loc x
-    | _ -> raise (Failure "error in state 9")
+    | _ -> raise Error
 
   (* ITEMS:
        decl → DTOKEN tp tids . 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
@@ -389,7 +391,7 @@ module States = struct
       let x = Actions.a3_decl ~loc a0_tids a1_tp ()
       and loc = loc_reduce ~loc 3 in
       _c0_decl ~loc x
-    | _ -> raise (Failure "error in state 10")
+    | _ -> raise Error
 
   (* ITEMS:
        decl → DTYPE . tp symbols 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
@@ -407,7 +409,7 @@ module States = struct
       let _, _l = shift () in
       let loc = loc_shift ~loc _l in
       state_5 ~loc x _c1_tp
-    | _ -> raise (Failure "error in state 11")
+    | _ -> raise Error
 
   (* ITEMS:
        decl → DTYPE tp . symbols 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
@@ -448,7 +450,7 @@ module States = struct
       let x = Actions.a30_symbols ~loc ()
       and loc = loc_reduce ~loc 0 in
       _c1_symbols ~loc x
-    | _ -> raise (Failure "error in state 12")
+    | _ -> raise Error
 
   (* ITEMS:
        id → ID . 		/ ID, TID, CODE, DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DPREC, DSEP, COLON, EQ
@@ -463,7 +465,7 @@ module States = struct
       let x = Actions.a33_id ~loc a0_ID ()
       and loc = loc_reduce ~loc 1 in
       _c0_id ~loc x
-    | _ -> raise (Failure "error in state 13")
+    | _ -> raise Error
 
   (* ITEMS:
        decl → DTYPE tp symbols . 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
@@ -478,7 +480,7 @@ module States = struct
       let x = Actions.a5_decl ~loc a0_symbols a1_tp ()
       and loc = loc_reduce ~loc 3 in
       _c0_decl ~loc x
-    | _ -> raise (Failure "error in state 14")
+    | _ -> raise Error
 
   (* ITEMS:
        symbols → symbol . symbols 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
@@ -519,7 +521,7 @@ module States = struct
       let x = Actions.a30_symbols ~loc ()
       and loc = loc_reduce ~loc 0 in
       _c1_symbols ~loc x
-    | _ -> raise (Failure "error in state 15")
+    | _ -> raise Error
 
   (* ITEMS:
        symbols → symbol symbols . 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
@@ -534,7 +536,7 @@ module States = struct
       let x = Actions.a29_symbols ~loc a0_symbols a1_symbol ()
       and loc = loc_reduce ~loc 2 in
       _c0_symbols ~loc x
-    | _ -> raise (Failure "error in state 16")
+    | _ -> raise Error
 
   (* ITEMS:
        symbol → id . 		/ ID, TID, CODE, DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DPREC, DSEP
@@ -549,7 +551,7 @@ module States = struct
       let x = Actions.a31_symbol ~loc a0_id ()
       and loc = loc_reduce ~loc 1 in
       _c0_symbol ~loc x
-    | _ -> raise (Failure "error in state 17")
+    | _ -> raise Error
 
   (* ITEMS:
        symbol → tid . 		/ ID, TID, CODE, DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DPREC, DSEP
@@ -564,7 +566,7 @@ module States = struct
       let x = Actions.a32_symbol ~loc a0_tid ()
       and loc = loc_reduce ~loc 1 in
       _c0_symbol ~loc x
-    | _ -> raise (Failure "error in state 18")
+    | _ -> raise Error
 
   (* ITEMS:
        decl → DSTART . tp ids 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
@@ -602,7 +604,7 @@ module States = struct
       let x = Actions.a26_ids ~loc ()
       and loc = loc_reduce ~loc 0 in
       _c1_ids ~loc x
-    | _ -> raise (Failure "error in state 19")
+    | _ -> raise Error
 
   (* ITEMS:
        decl → DSTART ids . 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
@@ -617,7 +619,7 @@ module States = struct
       let x = Actions.a7_decl ~loc a0_ids ()
       and loc = loc_reduce ~loc 2 in
       _c0_decl ~loc x
-    | _ -> raise (Failure "error in state 20")
+    | _ -> raise Error
 
   (* ITEMS:
        ids → id . ids 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
@@ -645,7 +647,7 @@ module States = struct
       let x = Actions.a26_ids ~loc ()
       and loc = loc_reduce ~loc 0 in
       _c1_ids ~loc x
-    | _ -> raise (Failure "error in state 21")
+    | _ -> raise Error
 
   (* ITEMS:
        ids → id ids . 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
@@ -660,7 +662,7 @@ module States = struct
       let x = Actions.a25_ids ~loc a0_ids a1_id ()
       and loc = loc_reduce ~loc 2 in
       _c0_ids ~loc x
-    | _ -> raise (Failure "error in state 22")
+    | _ -> raise Error
 
   (* ITEMS:
        decl → DSTART tp . ids 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
@@ -688,7 +690,7 @@ module States = struct
       let x = Actions.a26_ids ~loc ()
       and loc = loc_reduce ~loc 0 in
       _c1_ids ~loc x
-    | _ -> raise (Failure "error in state 23")
+    | _ -> raise Error
 
   (* ITEMS:
        decl → DSTART tp ids . 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
@@ -703,7 +705,7 @@ module States = struct
       let x = Actions.a4_decl ~loc a0_ids a1_tp ()
       and loc = loc_reduce ~loc 3 in
       _c0_decl ~loc x
-    | _ -> raise (Failure "error in state 24")
+    | _ -> raise Error
 
   (* ITEMS:
        decl → DLEFT . symbols 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
@@ -744,7 +746,7 @@ module States = struct
       let x = Actions.a30_symbols ~loc ()
       and loc = loc_reduce ~loc 0 in
       _c1_symbols ~loc x
-    | _ -> raise (Failure "error in state 25")
+    | _ -> raise Error
 
   (* ITEMS:
        decl → DLEFT symbols . 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
@@ -759,7 +761,7 @@ module States = struct
       let x = Actions.a8_decl ~loc a0_symbols ()
       and loc = loc_reduce ~loc 2 in
       _c0_decl ~loc x
-    | _ -> raise (Failure "error in state 26")
+    | _ -> raise Error
 
   (* ITEMS:
        decl → DRIGHT . symbols 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
@@ -800,7 +802,7 @@ module States = struct
       let x = Actions.a30_symbols ~loc ()
       and loc = loc_reduce ~loc 0 in
       _c1_symbols ~loc x
-    | _ -> raise (Failure "error in state 27")
+    | _ -> raise Error
 
   (* ITEMS:
        decl → DRIGHT symbols . 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
@@ -815,7 +817,7 @@ module States = struct
       let x = Actions.a9_decl ~loc a0_symbols ()
       and loc = loc_reduce ~loc 2 in
       _c0_decl ~loc x
-    | _ -> raise (Failure "error in state 28")
+    | _ -> raise Error
 
   (* ITEMS:
        decl → DNONASSOC . symbols 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
@@ -856,7 +858,7 @@ module States = struct
       let x = Actions.a30_symbols ~loc ()
       and loc = loc_reduce ~loc 0 in
       _c1_symbols ~loc x
-    | _ -> raise (Failure "error in state 29")
+    | _ -> raise Error
 
   (* ITEMS:
        decl → DNONASSOC symbols . 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
@@ -871,7 +873,7 @@ module States = struct
       let x = Actions.a10_decl ~loc a0_symbols ()
       and loc = loc_reduce ~loc 2 in
       _c0_decl ~loc x
-    | _ -> raise (Failure "error in state 30")
+    | _ -> raise Error
 
   (* ITEMS:
        grammar' → hcode decls . DSEP rules EOF
@@ -886,7 +888,7 @@ module States = struct
       let _, _l = shift () in
       let loc = loc_shift ~loc _l in
       state_32 ~loc a0_decls a1_hcode _c0_grammar_starting
-    | _ -> raise (Failure "error in state 31")
+    | _ -> raise Error
 
   (* ITEMS:
        grammar' → hcode decls DSEP . rules EOF
@@ -917,7 +919,7 @@ module States = struct
       let x = Actions.a12_rules ~loc ()
       and loc = loc_reduce ~loc 0 in
       _c1_rules ~loc x
-    | _ -> raise (Failure "error in state 32")
+    | _ -> raise Error
 
   (* ITEMS:
        grammar' → hcode decls DSEP rules . EOF
@@ -932,7 +934,7 @@ module States = struct
       let _, _l = shift () in
       let loc = loc_shift ~loc _l in
       state_34 ~loc a0_rules a2_decls a3_hcode _c0_grammar_starting
-    | _ -> raise (Failure "error in state 33")
+    | _ -> raise Error
 
   (* ITEMS:
        grammar' → hcode decls DSEP rules EOF .
@@ -974,7 +976,7 @@ module States = struct
       let x = Actions.a12_rules ~loc ()
       and loc = loc_reduce ~loc 0 in
       _c1_rules ~loc x
-    | _ -> raise (Failure "error in state 35")
+    | _ -> raise Error
 
   (* ITEMS:
        rules → rule rules . 		/ EOF
@@ -989,7 +991,7 @@ module States = struct
       let x = Actions.a11_rules ~loc a0_rules a1_rule ()
       and loc = loc_reduce ~loc 2 in
       _c0_rules ~loc x
-    | _ -> raise (Failure "error in state 36")
+    | _ -> raise Error
 
   (* ITEMS:
        rule → id . COLON rule_prods SEMI 		/ ID, EOF
@@ -1004,7 +1006,7 @@ module States = struct
       let _, _l = shift () in
       let loc = loc_shift ~loc _l in
       state_38 ~loc a0_id _c0_rule
-    | _ -> raise (Failure "error in state 37")
+    | _ -> raise Error
 
   (* ITEMS:
        rule → id COLON . rule_prods SEMI 		/ ID, EOF
@@ -1072,7 +1074,7 @@ module States = struct
       let _, _l = shift () in
       let loc = loc_shift ~loc _l in
       state_39 ~loc _c2_productions
-    | _ -> raise (Failure "error in state 38")
+    | _ -> raise Error
 
   (* ITEMS:
        productions → BAR . production productions 		/ SEMI
@@ -1120,7 +1122,7 @@ module States = struct
       let x = Actions.a22_producers ~loc ()
       and loc = loc_reduce ~loc 0 in
       _c2_producers ~loc x
-    | _ -> raise (Failure "error in state 39")
+    | _ -> raise Error
 
   (* ITEMS:
        productions → BAR production . productions 		/ SEMI
@@ -1145,7 +1147,7 @@ module States = struct
       let x = Actions.a17_productions ~loc ()
       and loc = loc_reduce ~loc 0 in
       _c1_productions ~loc x
-    | _ -> raise (Failure "error in state 40")
+    | _ -> raise Error
 
   (* ITEMS:
        productions → BAR production productions . 		/ SEMI
@@ -1160,7 +1162,7 @@ module States = struct
       let x = Actions.a16_productions ~loc a0_productions a1_production ()
       and loc = loc_reduce ~loc 3 in
       _c0_productions ~loc x
-    | _ -> raise (Failure "error in state 41")
+    | _ -> raise Error
 
   (* ITEMS:
        production → producers . production_prec code 		/ SEMI, BAR
@@ -1185,7 +1187,7 @@ module States = struct
       let x = Actions.a20_production_prec ~loc ()
       and loc = loc_reduce ~loc 0 in
       _c1_production_prec ~loc x
-    | _ -> raise (Failure "error in state 42")
+    | _ -> raise Error
 
   (* ITEMS:
        production_prec → DPREC . symbol 		/ CODE
@@ -1216,7 +1218,7 @@ module States = struct
       let _, _l = shift () in
       let loc = loc_shift ~loc _l in
       state_4 ~loc x _c3_tid
-    | _ -> raise (Failure "error in state 43")
+    | _ -> raise Error
 
   (* ITEMS:
        production_prec → DPREC symbol . 		/ CODE
@@ -1231,7 +1233,7 @@ module States = struct
       let x = Actions.a19_production_prec ~loc a0_symbol ()
       and loc = loc_reduce ~loc 2 in
       _c0_production_prec ~loc x
-    | _ -> raise (Failure "error in state 44")
+    | _ -> raise Error
 
   (* ITEMS:
        production → producers production_prec . code 		/ SEMI, BAR
@@ -1249,7 +1251,7 @@ module States = struct
       let _, _l = shift () in
       let loc = loc_shift ~loc _l in
       state_46 ~loc x _c1_code
-    | _ -> raise (Failure "error in state 45")
+    | _ -> raise Error
 
   (* ITEMS:
        code → CODE . 		/ SEMI, BAR
@@ -1264,7 +1266,7 @@ module States = struct
       let x = Actions.a36_code ~loc a0_CODE ()
       and loc = loc_reduce ~loc 1 in
       _c0_code ~loc x
-    | _ -> raise (Failure "error in state 46")
+    | _ -> raise Error
 
   (* ITEMS:
        production → producers production_prec code . 		/ SEMI, BAR
@@ -1279,7 +1281,7 @@ module States = struct
       let x = Actions.a18_production ~loc a0_code a1_production_prec a2_producers ()
       and loc = loc_reduce ~loc 3 in
       _c0_production ~loc x
-    | _ -> raise (Failure "error in state 47")
+    | _ -> raise Error
 
   (* ITEMS:
        producers → producer . producers 		/ CODE, DPREC
@@ -1324,7 +1326,7 @@ module States = struct
       let x = Actions.a22_producers ~loc ()
       and loc = loc_reduce ~loc 0 in
       _c1_producers ~loc x
-    | _ -> raise (Failure "error in state 48")
+    | _ -> raise Error
 
   (* ITEMS:
        producers → producer producers . 		/ CODE, DPREC
@@ -1339,7 +1341,7 @@ module States = struct
       let x = Actions.a21_producers ~loc a0_producers a1_producer ()
       and loc = loc_reduce ~loc 2 in
       _c0_producers ~loc x
-    | _ -> raise (Failure "error in state 49")
+    | _ -> raise Error
 
   (* ITEMS:
        producer → symbol . 		/ ID, TID, CODE, DPREC
@@ -1354,7 +1356,7 @@ module States = struct
       let x = Actions.a24_producer ~loc a0_symbol ()
       and loc = loc_reduce ~loc 1 in
       _c0_producer ~loc x
-    | _ -> raise (Failure "error in state 50")
+    | _ -> raise Error
 
   (* ITEMS:
        producer → id . EQ symbol 		/ ID, TID, CODE, DPREC
@@ -1376,7 +1378,7 @@ module States = struct
       let x = Actions.a31_symbol ~loc a0_id ()
       and loc = loc_reduce ~loc 1 in
       _c1_symbol ~loc x
-    | _ -> raise (Failure "error in state 51")
+    | _ -> raise Error
 
   (* ITEMS:
        producer → id EQ . symbol 		/ ID, TID, CODE, DPREC
@@ -1407,7 +1409,7 @@ module States = struct
       let _, _l = shift () in
       let loc = loc_shift ~loc _l in
       state_4 ~loc x _c3_tid
-    | _ -> raise (Failure "error in state 52")
+    | _ -> raise Error
 
   (* ITEMS:
        producer → id EQ symbol . 		/ ID, TID, CODE, DPREC
@@ -1422,7 +1424,7 @@ module States = struct
       let x = Actions.a23_producer ~loc a0_symbol a2_id ()
       and loc = loc_reduce ~loc 3 in
       _c0_producer ~loc x
-    | _ -> raise (Failure "error in state 53")
+    | _ -> raise Error
 
   (* ITEMS:
        rule → id COLON rule_prods . SEMI 		/ ID, EOF
@@ -1437,7 +1439,7 @@ module States = struct
       let _, _l = shift () in
       let loc = loc_shift ~loc _l in
       state_55 ~loc a0_rule_prods a2_id _c0_rule
-    | _ -> raise (Failure "error in state 54")
+    | _ -> raise Error
 
   (* ITEMS:
        rule → id COLON rule_prods SEMI . 		/ ID, EOF
@@ -1452,7 +1454,7 @@ module States = struct
       let x = Actions.a13_rule ~loc a1_rule_prods a3_id ()
       and loc = loc_reduce ~loc 4 in
       _c0_rule ~loc x
-    | _ -> raise (Failure "error in state 55")
+    | _ -> raise Error
 
   (* ITEMS:
        rule_prods → productions . 		/ SEMI
@@ -1467,7 +1469,7 @@ module States = struct
       let x = Actions.a15_rule_prods ~loc a0_productions ()
       and loc = loc_reduce ~loc 1 in
       _c0_rule_prods ~loc x
-    | _ -> raise (Failure "error in state 56")
+    | _ -> raise Error
 
   (* ITEMS:
        rule_prods → production . productions 		/ SEMI
@@ -1492,7 +1494,7 @@ module States = struct
       let x = Actions.a17_productions ~loc ()
       and loc = loc_reduce ~loc 0 in
       _c1_productions ~loc x
-    | _ -> raise (Failure "error in state 57")
+    | _ -> raise Error
 
   (* ITEMS:
        rule_prods → production productions . 		/ SEMI
@@ -1507,7 +1509,7 @@ module States = struct
       let x = Actions.a14_rule_prods ~loc a0_productions a1_production ()
       and loc = loc_reduce ~loc 2 in
       _c0_rule_prods ~loc x
-    | _ -> raise (Failure "error in state 58")
+    | _ -> raise Error
 
   (* ITEMS:
        decls → decl . decls 		/ DSEP
@@ -1572,7 +1574,7 @@ module States = struct
       let x = Actions.a2_decls ~loc ()
       and loc = loc_reduce ~loc 0 in
       _c1_decls ~loc x
-    | _ -> raise (Failure "error in state 59")
+    | _ -> raise Error
 
   (* ITEMS:
        decls → decl decls . 		/ DSEP
@@ -1587,7 +1589,7 @@ module States = struct
       let x = Actions.a1_decls ~loc a0_decls a1_decl ()
       and loc = loc_reduce ~loc 2 in
       _c0_decls ~loc x
-    | _ -> raise (Failure "error in state 60")
+    | _ -> raise Error
   ;;
 end
 

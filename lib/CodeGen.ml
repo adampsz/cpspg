@@ -230,10 +230,10 @@ struct
     | Reduce (i, j) -> write_action_reduce f state lookahead i j
   ;;
 
-  let write_actions f id state =
+  let write_actions f state =
     Format.fprintf f "    match lookahead () with\n";
     List.iter (fun (l, m) -> write_action f state l m) state.s_action;
-    Format.fprintf f "    | _ -> raise (Failure \"error in state %d\")\n" id
+    Format.fprintf f "    | _ -> raise Error\n"
   ;;
 
   let write_actions_starting f state =
@@ -338,7 +338,7 @@ struct
       (fun f -> write_cont_ids f (fun _ -> true) state.s_kernel)
   ;;
 
-  let write_state_body f id state =
+  let write_state_body f state =
     let kn = List.length state.s_kernel in
     let gen_state_cont_def i group pre post =
       let fc f = write_cont_definition f state group (i + kn) in
@@ -348,12 +348,12 @@ struct
     let group = List.hd state.s_kernel in
     if group.g_starting && (List.hd group.g_items).i_suffix = []
     then write_actions_starting f state
-    else write_actions f id state
+    else write_actions f state
   ;;
 
   let write_state f id state =
     write_state_sig f id state;
-    write_state_body f id state
+    write_state_body f state
   ;;
 
   let write_entry f symbol id =
@@ -385,6 +385,7 @@ struct
        [@@@@@@warning \"-redundant-case\"]\n\
        [@@@@@@warning \"-redundant-subpat\"]\n\n\
        %t\n\n\
+       exception Error\n\n\
        %tmodule Actions = struct\n\
        %s%tend\n\n\
        module States = struct\n\
