@@ -1,0 +1,32 @@
+(executable
+ (public_name lua)
+ (name main)
+ (libraries unix)
+ (ocamlopt_flags
+  (:standard -O3)))
+
+(ocamllex Lexer)
+
+(rule
+ (deps Parser.mly)
+ (target Parser.ml)
+ (enabled_if
+  (= %{env:GEN=} cpspg))
+ (action
+  (run cpspg --comment -o %{target} %{deps})))
+
+(rule
+ (deps Parser.mly)
+ (target Parser.ml)
+ (enabled_if
+  (= %{env:GEN=} menhir))
+ (action
+  (run menhir %{deps})))
+
+(rule
+ (deps Parser.mly)
+ (target Parser.ml)
+ (enabled_if
+  (= %{env:GEN=} ocamlyacc))
+ (action
+  (run ocamlyacc %{deps})))
