@@ -1,5 +1,10 @@
 # Continuation-passing style parser generator
 
+## About
+
+This program is a tool similar to [ocamlyacc](https://v2.ocaml.org/manual/lexyacc.html) that generates LALR(1) parsers.
+However, unlike ocamlyacc, it uses the continuation-passing style, which allows for better type inference and better optimization by the compiler.
+
 ## Usage
 
 To generate parser from `.mly` grammar definition, run:
