@@ -1,6 +1,6 @@
 OCAMLC=ocamlopt
 OCAMLFLAGS=-O3 -unbox-closures
-MENHIRFLAGS=-O 0
+MENHIRFLAGS=
 
 .PHONY: bench
 bench: main.yacc.exe main.menhir.exe main.cpspg.exe
