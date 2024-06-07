@@ -5,6 +5,7 @@
 (generate_opam_files true)
 
 (authors "Adam Szeruda")
+(license MIT)
 
 (package
  (name cpspg)

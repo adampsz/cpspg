@@ -2,6 +2,7 @@
 opam-version: "2.0"
 synopsis: "Continuation-passing style parser generator"
 authors: ["Adam Szeruda"]
+license: "MIT"
 depends: [
   "ocaml"
   "dune" {>= "3.7"}
