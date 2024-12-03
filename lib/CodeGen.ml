@@ -1,6 +1,36 @@
 module IntMap = Map.Make (Int)
 module SymbolMap = Map.Make (Automaton.Symbol)
 
+(* -unused-rec-flag due continuations always being mutually recursive, while often they don't need to *)
+(* FIXME: should we include -redunant-{case, subpat}? They trigger warnings
+   in grammars with unresolved conflicts, but maybe it's a good thing? *)
+let header =
+  "[@@@warning \"-unused-rec-flag\"]\n\
+   [@@@warning \"-redundant-case\"]\n\
+   [@@@warning \"-redundant-subpat\"]\n"
+;;
+
+let prelude =
+  "exception\n\
+  \  UnexpectedToken of\n\
+  \    { token : token\n\
+  \    ; expected : string list\n\
+  \    ; position : (Lexing.position * Lexing.position)\n\
+  \    }\n\n\
+   let _ =\n\
+  \  Printexc.register_printer (function\n\
+  \    | UnexpectedToken { expected; position = pos, _; _ } ->\n\
+  \      Some\n\
+  \        (Printf.sprintf\n\
+  \           \"UnexpectedToken: at %s:%d:%d, expected: %s\"\n\
+  \           pos.pos_fname\n\
+  \           pos.pos_lnum\n\
+  \           pos.pos_cnum\n\
+  \           (String.concat \", \" expected))\n\
+  \    | _ -> None)\n\
+   ;;\n"
+;;
+
 let action_lib =
   "  let _kw_endpos ~loc _ =\n\
   \    match loc with\n\
@@ -37,15 +67,20 @@ let state_lib =
   \    lexbuf_fallback_p := !lexbuf.lex_curr_p;\n\
   \    sym\n\
   \  ;;\n\n\
-  \  let lookahead () =\n\
+  \  let peek () =\n\
   \    match !peeked with\n\
-  \    | Some (tok, _) -> tok\n\
+  \    | Some p -> p\n\
   \    | None ->\n\
   \      let tok = !lexfun !lexbuf\n\
   \      and loc = !lexbuf.lex_start_p, !lexbuf.lex_curr_p in\n\
   \      peeked := Some (tok, loc);\n\
-  \      tok\n\
-  \  ;;\n\n\
+  \      tok, loc\n\
+  \    ;;\n\n\
+  \  let lookahead () = fst (peek ())\n\n\
+  \  let fail expected =\n\
+  \      let token, position = peek () in\n\
+  \      raise (UnexpectedToken { token; expected; position })\n\
+  \    ;;\n\n\
   \  let loc_shift ~loc l = l :: loc\n\n\
   \  let loc_reduce ~loc = function\n\
   \    | 0 -> (!lexbuf_fallback_p, !lexbuf_fallback_p) :: loc\n\
@@ -53,7 +88,7 @@ let state_lib =
   \      let rec skip n xs = if n = 0 then xs else skip (n - 1) (List.tl xs) in\n\
   \      let l = fst (List.nth loc (n - 1)), snd (List.hd loc) in\n\
   \      l :: skip n loc\n\
-  \  ;;\n\n"
+  \  ;;\n"
 ;;
 
 let iteri2 f xs ys =
@@ -152,6 +187,14 @@ struct
     List.iteri iter symbols
   ;;
 
+  let write_term_names f terms =
+    let write i t =
+      if i > 0 then Format.fprintf f "; ";
+      Format.fprintf f "\"%s\"" (term_name t)
+    in
+    List.iteri write terms
+  ;;
+
   let write_term_pattern f bind t =
     if symbol_has_value (Term t)
     then Format.fprintf f "%s %s" (term_name t) (if bind then "x" else "_")
@@ -233,7 +276,9 @@ struct
   let write_actions f state =
     Format.fprintf f "    match lookahead () with\n";
     List.iter (fun (l, m) -> write_action f state l m) state.s_action;
-    Format.fprintf f "    | _ -> raise Error\n"
+    let fold acc (term, _) = TermSet.union term acc in
+    let expected = List.fold_left fold TermSet.empty state.s_action |> TermSet.elements in
+    Format.fprintf f "    | _ -> fail [ %t ]\n" (fun f -> write_term_names f expected)
   ;;
 
   let write_actions_starting f state =
@@ -266,8 +311,7 @@ struct
     let infos = List.filter_map get_info symbols in
     let infos = List.fast_sort cmp infos in
     Format.fprintf f "type token =\n";
-    List.iter (write_term_cons f) infos;
-    Format.fprintf f "\n"
+    List.iter (write_term_cons f) infos
   ;;
 
   let write_semantic_action_code f action =
@@ -376,23 +420,23 @@ struct
       Format.fprintf f "  %s %t%s" pre (fun f -> write_state f id s) post
     and write_entry f (nt, s) = write_entry f nt s
     and state_letrec = letrec ~post:"\n" ~post':"  ;;\n" in
-    (* -unused-rec-flag due continuations always being mutually recursive, while often they don't need to *)
-    (* FIXME: should we include -redunant-{case, subpat}? They trigger warnings
-       in grammars with unresolved conflicts, but maybe it's a good thing? *)
     Format.fprintf
       f
-      "[@@@@@@warning \"-unused-rec-flag\"]\n\
-       [@@@@@@warning \"-redundant-case\"]\n\
-       [@@@@@@warning \"-redundant-subpat\"]\n\n\
+      "%s\n\
        %t\n\n\
-       exception Error\n\n\
-       %tmodule Actions = struct\n\
-       %s%tend\n\n\
+       %t\n\
+       %s\n\
+       module Actions = struct\n\
+       %s\n\
+       %tend\n\n\
        module States = struct\n\
-       %s%tend\n\n\
+       %s\n\
+       %tend\n\n\
        %t"
+      header
       (fun f -> write_string f A.automaton.a_header)
       (fun f -> write_term_type f G.symbols)
+      prelude
       action_lib
       (fun f -> IntMap.iter (write_semantic_action f) A.automaton.a_actions)
       state_lib

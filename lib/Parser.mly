@@ -17,7 +17,7 @@ let mknode ~loc data = { loc; data }
 %%
 
 grammar:
-    | header=hcode decls=decls DSEP rules=rules EOF { { header = header; decls; rules } }
+    | header=hcode decls=decls DSEP rules=rules EOF { { header; decls; rules } }
 ;
 
 decls:
@@ -30,7 +30,7 @@ decl:
     | DTOKEN xs=tids         { DeclToken (None, xs) }
     | DSTART tp=tp xs=ids    { DeclStart (Some tp, xs) }
     | DSTART xs=ids          { DeclStart (None, xs) }
-    | DTYPE tp=tp xs=symbols { DeclType (tp, xs) }           
+    | DTYPE tp=tp xs=symbols { DeclType (tp, xs) }
     | DLEFT xs=symbols       { DeclLeft xs }
     | DRIGHT xs=symbols      { DeclRight xs }
     | DNONASSOC xs=symbols   { DeclNonassoc xs }

@@ -6,8 +6,6 @@ open Ast
 
 let mknode ~loc data = { loc; data }
 
-exception Error
-
 type token =
   | TYPE of (string)
   | TID of (string)
@@ -26,6 +24,26 @@ type token =
   | COLON
   | CODE of (code)
   | BAR
+
+exception
+  UnexpectedToken of
+    { token : token
+    ; expected : string list
+    ; position : (Lexing.position * Lexing.position)
+    }
+
+let _ =
+  Printexc.register_printer (function
+    | UnexpectedToken { expected; position = pos, _; _ } ->
+      Some
+        (Printf.sprintf
+           "UnexpectedToken: at %s:%d:%d, expected: %s"
+           pos.pos_fname
+           pos.pos_lnum
+           pos.pos_cnum
+           (String.concat ", " expected))
+    | _ -> None)
+;;
 
 module Actions = struct
   let _kw_endpos ~loc _ =
@@ -46,7 +64,8 @@ module Actions = struct
   let _kw_symbolstartofs ~loc:_ _ = failwith "unimplemented: $symbolstartofs"
   let _kw_loc ~loc n = _kw_startpos ~loc n, _kw_endpos ~loc n
   let _kw_sloc ~loc:_ _ = failwith "unimplemented: $sloc"
-  let a0_grammar ~loc:_loc rules decls header () = { header = header; decls; rules }
+
+  let a0_grammar ~loc:_loc rules decls header () = { header; decls; rules }
   let a1_decls ~loc:_loc xs x () = x :: xs
   let a2_decls ~loc:_loc () = []
   let a3_decl ~loc:_loc xs tp () = DeclToken (Some tp, xs)
@@ -106,15 +125,22 @@ module States = struct
     sym
   ;;
 
-  let lookahead () =
+  let peek () =
     match !peeked with
-    | Some (tok, _) -> tok
+    | Some p -> p
     | None ->
       let tok = !lexfun !lexbuf
       and loc = !lexbuf.lex_start_p, !lexbuf.lex_curr_p in
       peeked := Some (tok, loc);
-      tok
-  ;;
+      tok, loc
+    ;;
+
+  let lookahead () = fst (peek ())
+
+  let fail expected =
+      let token, position = peek () in
+      raise (UnexpectedToken { token; expected; position })
+    ;;
 
   let loc_shift ~loc l = l :: loc
 
@@ -142,7 +168,7 @@ module States = struct
       let _, _l = shift () in
       let loc = loc_shift ~loc _l in
       state_1 ~loc x _c1_hcode
-    | _ -> raise Error
+    | _ -> fail [ "CODE" ]
 
   (* ITEMS:
        hcode → CODE . 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
@@ -157,7 +183,7 @@ module States = struct
       let x = Actions.a37_hcode ~loc a0_CODE ()
       and loc = loc_reduce ~loc 1 in
       _c0_hcode ~loc x
-    | _ -> raise Error
+    | _ -> fail [ "DTOKEN"; "DTYPE"; "DSTART"; "DLEFT"; "DRIGHT"; "DNONASSOC"; "DSEP" ]
 
   (* ITEMS:
        grammar' → hcode . decls DSEP rules EOF
@@ -222,7 +248,7 @@ module States = struct
       let x = Actions.a2_decls ~loc ()
       and loc = loc_reduce ~loc 0 in
       _c1_decls ~loc x
-    | _ -> raise Error
+    | _ -> fail [ "DTOKEN"; "DTYPE"; "DSTART"; "DLEFT"; "DRIGHT"; "DNONASSOC"; "DSEP" ]
 
   (* ITEMS:
        decl → DTOKEN . tp tids 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
@@ -260,7 +286,7 @@ module States = struct
       let x = Actions.a28_tids ~loc ()
       and loc = loc_reduce ~loc 0 in
       _c1_tids ~loc x
-    | _ -> raise Error
+    | _ -> fail [ "TID"; "TYPE"; "DTOKEN"; "DTYPE"; "DSTART"; "DLEFT"; "DRIGHT"; "DNONASSOC"; "DSEP" ]
 
   (* ITEMS:
        tid → TID . 		/ ID, TID, CODE, DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DPREC, DSEP
@@ -275,7 +301,7 @@ module States = struct
       let x = Actions.a34_tid ~loc a0_TID ()
       and loc = loc_reduce ~loc 1 in
       _c0_tid ~loc x
-    | _ -> raise Error
+    | _ -> fail [ "ID"; "TID"; "CODE"; "DTOKEN"; "DTYPE"; "DSTART"; "DLEFT"; "DRIGHT"; "DNONASSOC"; "DPREC"; "DSEP" ]
 
   (* ITEMS:
        tp → TYPE . 		/ ID, TID, DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
@@ -290,7 +316,7 @@ module States = struct
       let x = Actions.a35_tp ~loc a0_TYPE ()
       and loc = loc_reduce ~loc 1 in
       _c0_tp ~loc x
-    | _ -> raise Error
+    | _ -> fail [ "ID"; "TID"; "DTOKEN"; "DTYPE"; "DSTART"; "DLEFT"; "DRIGHT"; "DNONASSOC"; "DSEP" ]
 
   (* ITEMS:
        decl → DTOKEN tids . 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
@@ -305,7 +331,7 @@ module States = struct
       let x = Actions.a6_decl ~loc a0_tids ()
       and loc = loc_reduce ~loc 2 in
       _c0_decl ~loc x
-    | _ -> raise Error
+    | _ -> fail [ "DTOKEN"; "DTYPE"; "DSTART"; "DLEFT"; "DRIGHT"; "DNONASSOC"; "DSEP" ]
 
   (* ITEMS:
        tids → tid . tids 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
@@ -333,7 +359,7 @@ module States = struct
       let x = Actions.a28_tids ~loc ()
       and loc = loc_reduce ~loc 0 in
       _c1_tids ~loc x
-    | _ -> raise Error
+    | _ -> fail [ "TID"; "DTOKEN"; "DTYPE"; "DSTART"; "DLEFT"; "DRIGHT"; "DNONASSOC"; "DSEP" ]
 
   (* ITEMS:
        tids → tid tids . 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
@@ -348,7 +374,7 @@ module States = struct
       let x = Actions.a27_tids ~loc a0_tids a1_tid ()
       and loc = loc_reduce ~loc 2 in
       _c0_tids ~loc x
-    | _ -> raise Error
+    | _ -> fail [ "DTOKEN"; "DTYPE"; "DSTART"; "DLEFT"; "DRIGHT"; "DNONASSOC"; "DSEP" ]
 
   (* ITEMS:
        decl → DTOKEN tp . tids 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
@@ -376,7 +402,7 @@ module States = struct
       let x = Actions.a28_tids ~loc ()
       and loc = loc_reduce ~loc 0 in
       _c1_tids ~loc x
-    | _ -> raise Error
+    | _ -> fail [ "TID"; "DTOKEN"; "DTYPE"; "DSTART"; "DLEFT"; "DRIGHT"; "DNONASSOC"; "DSEP" ]
 
   (* ITEMS:
        decl → DTOKEN tp tids . 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
@@ -391,7 +417,7 @@ module States = struct
       let x = Actions.a3_decl ~loc a0_tids a1_tp ()
       and loc = loc_reduce ~loc 3 in
       _c0_decl ~loc x
-    | _ -> raise Error
+    | _ -> fail [ "DTOKEN"; "DTYPE"; "DSTART"; "DLEFT"; "DRIGHT"; "DNONASSOC"; "DSEP" ]
 
   (* ITEMS:
        decl → DTYPE . tp symbols 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
@@ -409,7 +435,7 @@ module States = struct
       let _, _l = shift () in
       let loc = loc_shift ~loc _l in
       state_5 ~loc x _c1_tp
-    | _ -> raise Error
+    | _ -> fail [ "TYPE" ]
 
   (* ITEMS:
        decl → DTYPE tp . symbols 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
@@ -450,7 +476,7 @@ module States = struct
       let x = Actions.a30_symbols ~loc ()
       and loc = loc_reduce ~loc 0 in
       _c1_symbols ~loc x
-    | _ -> raise Error
+    | _ -> fail [ "ID"; "TID"; "DTOKEN"; "DTYPE"; "DSTART"; "DLEFT"; "DRIGHT"; "DNONASSOC"; "DSEP" ]
 
   (* ITEMS:
        id → ID . 		/ ID, TID, CODE, DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DPREC, DSEP, COLON, EQ
@@ -465,7 +491,7 @@ module States = struct
       let x = Actions.a33_id ~loc a0_ID ()
       and loc = loc_reduce ~loc 1 in
       _c0_id ~loc x
-    | _ -> raise Error
+    | _ -> fail [ "ID"; "TID"; "CODE"; "DTOKEN"; "DTYPE"; "DSTART"; "DLEFT"; "DRIGHT"; "DNONASSOC"; "DPREC"; "DSEP"; "COLON"; "EQ" ]
 
   (* ITEMS:
        decl → DTYPE tp symbols . 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
@@ -480,7 +506,7 @@ module States = struct
       let x = Actions.a5_decl ~loc a0_symbols a1_tp ()
       and loc = loc_reduce ~loc 3 in
       _c0_decl ~loc x
-    | _ -> raise Error
+    | _ -> fail [ "DTOKEN"; "DTYPE"; "DSTART"; "DLEFT"; "DRIGHT"; "DNONASSOC"; "DSEP" ]
 
   (* ITEMS:
        symbols → symbol . symbols 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
@@ -521,7 +547,7 @@ module States = struct
       let x = Actions.a30_symbols ~loc ()
       and loc = loc_reduce ~loc 0 in
       _c1_symbols ~loc x
-    | _ -> raise Error
+    | _ -> fail [ "ID"; "TID"; "DTOKEN"; "DTYPE"; "DSTART"; "DLEFT"; "DRIGHT"; "DNONASSOC"; "DSEP" ]
 
   (* ITEMS:
        symbols → symbol symbols . 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
@@ -536,7 +562,7 @@ module States = struct
       let x = Actions.a29_symbols ~loc a0_symbols a1_symbol ()
       and loc = loc_reduce ~loc 2 in
       _c0_symbols ~loc x
-    | _ -> raise Error
+    | _ -> fail [ "DTOKEN"; "DTYPE"; "DSTART"; "DLEFT"; "DRIGHT"; "DNONASSOC"; "DSEP" ]
 
   (* ITEMS:
        symbol → id . 		/ ID, TID, CODE, DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DPREC, DSEP
@@ -551,7 +577,7 @@ module States = struct
       let x = Actions.a31_symbol ~loc a0_id ()
       and loc = loc_reduce ~loc 1 in
       _c0_symbol ~loc x
-    | _ -> raise Error
+    | _ -> fail [ "ID"; "TID"; "CODE"; "DTOKEN"; "DTYPE"; "DSTART"; "DLEFT"; "DRIGHT"; "DNONASSOC"; "DPREC"; "DSEP" ]
 
   (* ITEMS:
        symbol → tid . 		/ ID, TID, CODE, DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DPREC, DSEP
@@ -566,7 +592,7 @@ module States = struct
       let x = Actions.a32_symbol ~loc a0_tid ()
       and loc = loc_reduce ~loc 1 in
       _c0_symbol ~loc x
-    | _ -> raise Error
+    | _ -> fail [ "ID"; "TID"; "CODE"; "DTOKEN"; "DTYPE"; "DSTART"; "DLEFT"; "DRIGHT"; "DNONASSOC"; "DPREC"; "DSEP" ]
 
   (* ITEMS:
        decl → DSTART . tp ids 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
@@ -604,7 +630,7 @@ module States = struct
       let x = Actions.a26_ids ~loc ()
       and loc = loc_reduce ~loc 0 in
       _c1_ids ~loc x
-    | _ -> raise Error
+    | _ -> fail [ "ID"; "TYPE"; "DTOKEN"; "DTYPE"; "DSTART"; "DLEFT"; "DRIGHT"; "DNONASSOC"; "DSEP" ]
 
   (* ITEMS:
        decl → DSTART ids . 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
@@ -619,7 +645,7 @@ module States = struct
       let x = Actions.a7_decl ~loc a0_ids ()
       and loc = loc_reduce ~loc 2 in
       _c0_decl ~loc x
-    | _ -> raise Error
+    | _ -> fail [ "DTOKEN"; "DTYPE"; "DSTART"; "DLEFT"; "DRIGHT"; "DNONASSOC"; "DSEP" ]
 
   (* ITEMS:
        ids → id . ids 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
@@ -647,7 +673,7 @@ module States = struct
       let x = Actions.a26_ids ~loc ()
       and loc = loc_reduce ~loc 0 in
       _c1_ids ~loc x
-    | _ -> raise Error
+    | _ -> fail [ "ID"; "DTOKEN"; "DTYPE"; "DSTART"; "DLEFT"; "DRIGHT"; "DNONASSOC"; "DSEP" ]
 
   (* ITEMS:
        ids → id ids . 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
@@ -662,7 +688,7 @@ module States = struct
       let x = Actions.a25_ids ~loc a0_ids a1_id ()
       and loc = loc_reduce ~loc 2 in
       _c0_ids ~loc x
-    | _ -> raise Error
+    | _ -> fail [ "DTOKEN"; "DTYPE"; "DSTART"; "DLEFT"; "DRIGHT"; "DNONASSOC"; "DSEP" ]
 
   (* ITEMS:
        decl → DSTART tp . ids 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
@@ -690,7 +716,7 @@ module States = struct
       let x = Actions.a26_ids ~loc ()
       and loc = loc_reduce ~loc 0 in
       _c1_ids ~loc x
-    | _ -> raise Error
+    | _ -> fail [ "ID"; "DTOKEN"; "DTYPE"; "DSTART"; "DLEFT"; "DRIGHT"; "DNONASSOC"; "DSEP" ]
 
   (* ITEMS:
        decl → DSTART tp ids . 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
@@ -705,7 +731,7 @@ module States = struct
       let x = Actions.a4_decl ~loc a0_ids a1_tp ()
       and loc = loc_reduce ~loc 3 in
       _c0_decl ~loc x
-    | _ -> raise Error
+    | _ -> fail [ "DTOKEN"; "DTYPE"; "DSTART"; "DLEFT"; "DRIGHT"; "DNONASSOC"; "DSEP" ]
 
   (* ITEMS:
        decl → DLEFT . symbols 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
@@ -746,7 +772,7 @@ module States = struct
       let x = Actions.a30_symbols ~loc ()
       and loc = loc_reduce ~loc 0 in
       _c1_symbols ~loc x
-    | _ -> raise Error
+    | _ -> fail [ "ID"; "TID"; "DTOKEN"; "DTYPE"; "DSTART"; "DLEFT"; "DRIGHT"; "DNONASSOC"; "DSEP" ]
 
   (* ITEMS:
        decl → DLEFT symbols . 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
@@ -761,7 +787,7 @@ module States = struct
       let x = Actions.a8_decl ~loc a0_symbols ()
       and loc = loc_reduce ~loc 2 in
       _c0_decl ~loc x
-    | _ -> raise Error
+    | _ -> fail [ "DTOKEN"; "DTYPE"; "DSTART"; "DLEFT"; "DRIGHT"; "DNONASSOC"; "DSEP" ]
 
   (* ITEMS:
        decl → DRIGHT . symbols 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
@@ -802,7 +828,7 @@ module States = struct
       let x = Actions.a30_symbols ~loc ()
       and loc = loc_reduce ~loc 0 in
       _c1_symbols ~loc x
-    | _ -> raise Error
+    | _ -> fail [ "ID"; "TID"; "DTOKEN"; "DTYPE"; "DSTART"; "DLEFT"; "DRIGHT"; "DNONASSOC"; "DSEP" ]
 
   (* ITEMS:
        decl → DRIGHT symbols . 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
@@ -817,7 +843,7 @@ module States = struct
       let x = Actions.a9_decl ~loc a0_symbols ()
       and loc = loc_reduce ~loc 2 in
       _c0_decl ~loc x
-    | _ -> raise Error
+    | _ -> fail [ "DTOKEN"; "DTYPE"; "DSTART"; "DLEFT"; "DRIGHT"; "DNONASSOC"; "DSEP" ]
 
   (* ITEMS:
        decl → DNONASSOC . symbols 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
@@ -858,7 +884,7 @@ module States = struct
       let x = Actions.a30_symbols ~loc ()
       and loc = loc_reduce ~loc 0 in
       _c1_symbols ~loc x
-    | _ -> raise Error
+    | _ -> fail [ "ID"; "TID"; "DTOKEN"; "DTYPE"; "DSTART"; "DLEFT"; "DRIGHT"; "DNONASSOC"; "DSEP" ]
 
   (* ITEMS:
        decl → DNONASSOC symbols . 		/ DTOKEN, DTYPE, DSTART, DLEFT, DRIGHT, DNONASSOC, DSEP
@@ -873,7 +899,7 @@ module States = struct
       let x = Actions.a10_decl ~loc a0_symbols ()
       and loc = loc_reduce ~loc 2 in
       _c0_decl ~loc x
-    | _ -> raise Error
+    | _ -> fail [ "DTOKEN"; "DTYPE"; "DSTART"; "DLEFT"; "DRIGHT"; "DNONASSOC"; "DSEP" ]
 
   (* ITEMS:
        grammar' → hcode decls . DSEP rules EOF
@@ -888,7 +914,7 @@ module States = struct
       let _, _l = shift () in
       let loc = loc_shift ~loc _l in
       state_32 ~loc a0_decls a1_hcode _c0_grammar_starting
-    | _ -> raise Error
+    | _ -> fail [ "DSEP" ]
 
   (* ITEMS:
        grammar' → hcode decls DSEP . rules EOF
@@ -919,7 +945,7 @@ module States = struct
       let x = Actions.a12_rules ~loc ()
       and loc = loc_reduce ~loc 0 in
       _c1_rules ~loc x
-    | _ -> raise Error
+    | _ -> fail [ "ID"; "EOF" ]
 
   (* ITEMS:
        grammar' → hcode decls DSEP rules . EOF
@@ -934,7 +960,7 @@ module States = struct
       let _, _l = shift () in
       let loc = loc_shift ~loc _l in
       state_34 ~loc a0_rules a2_decls a3_hcode _c0_grammar_starting
-    | _ -> raise Error
+    | _ -> fail [ "EOF" ]
 
   (* ITEMS:
        grammar' → hcode decls DSEP rules EOF .
@@ -976,7 +1002,7 @@ module States = struct
       let x = Actions.a12_rules ~loc ()
       and loc = loc_reduce ~loc 0 in
       _c1_rules ~loc x
-    | _ -> raise Error
+    | _ -> fail [ "ID"; "EOF" ]
 
   (* ITEMS:
        rules → rule rules . 		/ EOF
@@ -991,7 +1017,7 @@ module States = struct
       let x = Actions.a11_rules ~loc a0_rules a1_rule ()
       and loc = loc_reduce ~loc 2 in
       _c0_rules ~loc x
-    | _ -> raise Error
+    | _ -> fail [ "EOF" ]
 
   (* ITEMS:
        rule → id . COLON rule_prods SEMI 		/ ID, EOF
@@ -1006,7 +1032,7 @@ module States = struct
       let _, _l = shift () in
       let loc = loc_shift ~loc _l in
       state_38 ~loc a0_id _c0_rule
-    | _ -> raise Error
+    | _ -> fail [ "COLON" ]
 
   (* ITEMS:
        rule → id COLON . rule_prods SEMI 		/ ID, EOF
@@ -1074,7 +1100,7 @@ module States = struct
       let _, _l = shift () in
       let loc = loc_shift ~loc _l in
       state_39 ~loc _c2_productions
-    | _ -> raise Error
+    | _ -> fail [ "ID"; "TID"; "CODE"; "DPREC"; "SEMI"; "BAR" ]
 
   (* ITEMS:
        productions → BAR . production productions 		/ SEMI
@@ -1122,7 +1148,7 @@ module States = struct
       let x = Actions.a22_producers ~loc ()
       and loc = loc_reduce ~loc 0 in
       _c2_producers ~loc x
-    | _ -> raise Error
+    | _ -> fail [ "ID"; "TID"; "CODE"; "DPREC" ]
 
   (* ITEMS:
        productions → BAR production . productions 		/ SEMI
@@ -1147,7 +1173,7 @@ module States = struct
       let x = Actions.a17_productions ~loc ()
       and loc = loc_reduce ~loc 0 in
       _c1_productions ~loc x
-    | _ -> raise Error
+    | _ -> fail [ "SEMI"; "BAR" ]
 
   (* ITEMS:
        productions → BAR production productions . 		/ SEMI
@@ -1162,7 +1188,7 @@ module States = struct
       let x = Actions.a16_productions ~loc a0_productions a1_production ()
       and loc = loc_reduce ~loc 3 in
       _c0_productions ~loc x
-    | _ -> raise Error
+    | _ -> fail [ "SEMI" ]
 
   (* ITEMS:
        production → producers . production_prec code 		/ SEMI, BAR
@@ -1187,7 +1213,7 @@ module States = struct
       let x = Actions.a20_production_prec ~loc ()
       and loc = loc_reduce ~loc 0 in
       _c1_production_prec ~loc x
-    | _ -> raise Error
+    | _ -> fail [ "CODE"; "DPREC" ]
 
   (* ITEMS:
        production_prec → DPREC . symbol 		/ CODE
@@ -1218,7 +1244,7 @@ module States = struct
       let _, _l = shift () in
       let loc = loc_shift ~loc _l in
       state_4 ~loc x _c3_tid
-    | _ -> raise Error
+    | _ -> fail [ "ID"; "TID" ]
 
   (* ITEMS:
        production_prec → DPREC symbol . 		/ CODE
@@ -1233,7 +1259,7 @@ module States = struct
       let x = Actions.a19_production_prec ~loc a0_symbol ()
       and loc = loc_reduce ~loc 2 in
       _c0_production_prec ~loc x
-    | _ -> raise Error
+    | _ -> fail [ "CODE" ]
 
   (* ITEMS:
        production → producers production_prec . code 		/ SEMI, BAR
@@ -1251,7 +1277,7 @@ module States = struct
       let _, _l = shift () in
       let loc = loc_shift ~loc _l in
       state_46 ~loc x _c1_code
-    | _ -> raise Error
+    | _ -> fail [ "CODE" ]
 
   (* ITEMS:
        code → CODE . 		/ SEMI, BAR
@@ -1266,7 +1292,7 @@ module States = struct
       let x = Actions.a36_code ~loc a0_CODE ()
       and loc = loc_reduce ~loc 1 in
       _c0_code ~loc x
-    | _ -> raise Error
+    | _ -> fail [ "SEMI"; "BAR" ]
 
   (* ITEMS:
        production → producers production_prec code . 		/ SEMI, BAR
@@ -1281,7 +1307,7 @@ module States = struct
       let x = Actions.a18_production ~loc a0_code a1_production_prec a2_producers ()
       and loc = loc_reduce ~loc 3 in
       _c0_production ~loc x
-    | _ -> raise Error
+    | _ -> fail [ "SEMI"; "BAR" ]
 
   (* ITEMS:
        producers → producer . producers 		/ CODE, DPREC
@@ -1326,7 +1352,7 @@ module States = struct
       let x = Actions.a22_producers ~loc ()
       and loc = loc_reduce ~loc 0 in
       _c1_producers ~loc x
-    | _ -> raise Error
+    | _ -> fail [ "ID"; "TID"; "CODE"; "DPREC" ]
 
   (* ITEMS:
        producers → producer producers . 		/ CODE, DPREC
@@ -1341,7 +1367,7 @@ module States = struct
       let x = Actions.a21_producers ~loc a0_producers a1_producer ()
       and loc = loc_reduce ~loc 2 in
       _c0_producers ~loc x
-    | _ -> raise Error
+    | _ -> fail [ "CODE"; "DPREC" ]
 
   (* ITEMS:
        producer → symbol . 		/ ID, TID, CODE, DPREC
@@ -1356,7 +1382,7 @@ module States = struct
       let x = Actions.a24_producer ~loc a0_symbol ()
       and loc = loc_reduce ~loc 1 in
       _c0_producer ~loc x
-    | _ -> raise Error
+    | _ -> fail [ "ID"; "TID"; "CODE"; "DPREC" ]
 
   (* ITEMS:
        producer → id . EQ symbol 		/ ID, TID, CODE, DPREC
@@ -1378,7 +1404,7 @@ module States = struct
       let x = Actions.a31_symbol ~loc a0_id ()
       and loc = loc_reduce ~loc 1 in
       _c1_symbol ~loc x
-    | _ -> raise Error
+    | _ -> fail [ "ID"; "TID"; "CODE"; "DPREC"; "EQ" ]
 
   (* ITEMS:
        producer → id EQ . symbol 		/ ID, TID, CODE, DPREC
@@ -1409,7 +1435,7 @@ module States = struct
       let _, _l = shift () in
       let loc = loc_shift ~loc _l in
       state_4 ~loc x _c3_tid
-    | _ -> raise Error
+    | _ -> fail [ "ID"; "TID" ]
 
   (* ITEMS:
        producer → id EQ symbol . 		/ ID, TID, CODE, DPREC
@@ -1424,7 +1450,7 @@ module States = struct
       let x = Actions.a23_producer ~loc a0_symbol a2_id ()
       and loc = loc_reduce ~loc 3 in
       _c0_producer ~loc x
-    | _ -> raise Error
+    | _ -> fail [ "ID"; "TID"; "CODE"; "DPREC" ]
 
   (* ITEMS:
        rule → id COLON rule_prods . SEMI 		/ ID, EOF
@@ -1439,7 +1465,7 @@ module States = struct
       let _, _l = shift () in
       let loc = loc_shift ~loc _l in
       state_55 ~loc a0_rule_prods a2_id _c0_rule
-    | _ -> raise Error
+    | _ -> fail [ "SEMI" ]
 
   (* ITEMS:
        rule → id COLON rule_prods SEMI . 		/ ID, EOF
@@ -1454,7 +1480,7 @@ module States = struct
       let x = Actions.a13_rule ~loc a1_rule_prods a3_id ()
       and loc = loc_reduce ~loc 4 in
       _c0_rule ~loc x
-    | _ -> raise Error
+    | _ -> fail [ "ID"; "EOF" ]
 
   (* ITEMS:
        rule_prods → productions . 		/ SEMI
@@ -1469,7 +1495,7 @@ module States = struct
       let x = Actions.a15_rule_prods ~loc a0_productions ()
       and loc = loc_reduce ~loc 1 in
       _c0_rule_prods ~loc x
-    | _ -> raise Error
+    | _ -> fail [ "SEMI" ]
 
   (* ITEMS:
        rule_prods → production . productions 		/ SEMI
@@ -1494,7 +1520,7 @@ module States = struct
       let x = Actions.a17_productions ~loc ()
       and loc = loc_reduce ~loc 0 in
       _c1_productions ~loc x
-    | _ -> raise Error
+    | _ -> fail [ "SEMI"; "BAR" ]
 
   (* ITEMS:
        rule_prods → production productions . 		/ SEMI
@@ -1509,7 +1535,7 @@ module States = struct
       let x = Actions.a14_rule_prods ~loc a0_productions a1_production ()
       and loc = loc_reduce ~loc 2 in
       _c0_rule_prods ~loc x
-    | _ -> raise Error
+    | _ -> fail [ "SEMI" ]
 
   (* ITEMS:
        decls → decl . decls 		/ DSEP
@@ -1574,7 +1600,7 @@ module States = struct
       let x = Actions.a2_decls ~loc ()
       and loc = loc_reduce ~loc 0 in
       _c1_decls ~loc x
-    | _ -> raise Error
+    | _ -> fail [ "DTOKEN"; "DTYPE"; "DSTART"; "DLEFT"; "DRIGHT"; "DNONASSOC"; "DSEP" ]
 
   (* ITEMS:
        decls → decl decls . 		/ DSEP
@@ -1589,7 +1615,7 @@ module States = struct
       let x = Actions.a1_decls ~loc a0_decls a1_decl ()
       and loc = loc_reduce ~loc 2 in
       _c0_decls ~loc x
-    | _ -> raise Error
+    | _ -> fail [ "DSEP" ]
   ;;
 end
 
