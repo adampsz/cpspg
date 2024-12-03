@@ -47,7 +47,7 @@ let bench input =
 
 let _ =
   let input = In_channel.input_all stdin in
-  let time, chunk = bench input in
+  let time, _chunk = bench input in
   (* Ast.pp_block Format.std_formatter chunk; *)
   Format.eprintf "Time: %fs\n%!" time
 ;;
