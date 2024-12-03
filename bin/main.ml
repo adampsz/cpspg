@@ -17,37 +17,37 @@ let codegen_readable () =
 let specs =
   [ ( "-o"
     , Arg.String (fun x -> output_name := Some x)
-    , "<file> Set output file name to <file>" )
+    , "<file>\tSet output file name to <file>" )
   ; ( "--automaton"
     , Arg.String (fun x -> output_automaton := Some x)
-    , "<file> Dump automaton graph in .dot format to <file>" )
+    , "<file>\tDump automaton graph in .dot format to <file>" )
     (* Grammar kind *)
   ; ( "--lr0"
     , Arg.Unit (fun _ -> grammar_kind := Cpspg.Types.LR0)
-    , "Construct a LR(0) automaton" )
+    , "\tConstruct a LR(0) automaton" )
   ; ( "--slr"
     , Arg.Unit (fun _ -> grammar_kind := Cpspg.Types.SLR)
-    , "Construct a SLR(1) automaton" )
+    , "\tConstruct a SLR(1) automaton" )
   ; ( "--lr1"
     , Arg.Unit (fun _ -> grammar_kind := Cpspg.Types.LR1)
-    , "Construct a LR(1) automaton" )
+    , "\tConstruct a LR(1) automaton" )
   ; ( "--lalr"
     , Arg.Unit (fun _ -> grammar_kind := Cpspg.Types.LALR)
-    , "Construct a LALR(1) automaton (default)" )
+    , "\tConstruct a LALR(1) automaton (default)" )
     (* Codegen options *)
   ; ( "--no-locations"
     , Arg.Unit (fun _ -> codegen_locations := false)
-    , "Disable family of $loc keywords and related code" )
+    , "\tDisable family of $loc keywords and related code" )
   ; ( "--no-line-directives"
     , Arg.Unit (fun _ -> codegen_line_directives := false)
-    , "Do not include line directives in generated code" )
-  ; "--comment", Arg.Set codegen_comments, "Include comments in the generated code"
+    , "\tDo not include line directives in generated code" )
+  ; "--comment", Arg.Set codegen_comments, "\tInclude comments in the generated code"
   ; ( "--readable-ids"
     , Arg.Set codegen_readable_ids
-    , "Make identifiers in generated code longer" )
+    , "\tMake identifiers in generated code longer" )
   ; ( "--readable"
     , Arg.Unit codegen_readable
-    , "Make generated code more readable (implies --comment, --readable-ids and \
+    , "\tMake generated code more readable (implies --comment, --readable-ids and \
        --no-line-directives)" )
   ]
   |> Arg.align
