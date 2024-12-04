@@ -4,31 +4,10 @@ module SymbolMap = Map.Make (Automaton.Symbol)
 (* -unused-rec-flag due continuations always being mutually recursive, while often they don't need to *)
 (* FIXME: should we include -redunant-{case, subpat}? They trigger warnings
    in grammars with unresolved conflicts, but maybe it's a good thing? *)
-let header =
+let prelude =
   "[@@@warning \"-unused-rec-flag\"]\n\
    [@@@warning \"-redundant-case\"]\n\
    [@@@warning \"-redundant-subpat\"]\n"
-;;
-
-let prelude =
-  "exception\n\
-  \  UnexpectedToken of\n\
-  \    { token : token\n\
-  \    ; expected : string list\n\
-  \    ; position : (Lexing.position * Lexing.position)\n\
-  \    }\n\n\
-   let _ =\n\
-  \  Printexc.register_printer (function\n\
-  \    | UnexpectedToken { expected; position = pos, _; _ } ->\n\
-  \      Some\n\
-  \        (Printf.sprintf\n\
-  \           \"UnexpectedToken: at %s:%d:%d, expected: %s\"\n\
-  \           pos.pos_fname\n\
-  \           pos.pos_lnum\n\
-  \           pos.pos_cnum\n\
-  \           (String.concat \", \" expected))\n\
-  \    | _ -> None)\n\
-   ;;\n"
 ;;
 
 let action_lib =
@@ -54,12 +33,16 @@ let state_lib =
   "  let lexfun = ref (fun _ -> assert false)\n\
   \  let lexbuf = ref (Lexing.from_string String.empty)\n\
   \  let peeked = ref None\n\
-  \  let lexbuf_fallback_p = ref Lexing.dummy_pos\n\n\
+  \  let lexbuf_fallback_p = ref Lexing.dummy_pos\n\
+  \  let error_token = ref None\n\
+  \  let expected_tokens = ref [] \n\n\
   \  let setup lf lb =\n\
   \    lexfun := lf;\n\
   \    lexbuf := lb;\n\
   \    peeked := None;\n\
-  \    lexbuf_fallback_p := !lexbuf.lex_curr_p\n\
+  \    lexbuf_fallback_p := !lexbuf.lex_curr_p;\n\
+  \    error_token := None;\n\
+  \    expected_tokens := []\n\
   \  ;;\n\n\
   \  let shift () =\n\
   \    let sym = Option.get !peeked in\n\
@@ -78,8 +61,10 @@ let state_lib =
   \    ;;\n\n\
   \  let lookahead () = fst (peek ())\n\n\
   \  let fail expected =\n\
-  \      let token, position = peek () in\n\
-  \      raise (UnexpectedToken { token; expected; position })\n\
+  \      let token, _ = peek () in\n\
+  \      error_token := Some token;\n\
+  \      expected_tokens := expected;\n\
+  \      raise Parsing.Parse_error\n\
   \    ;;\n\n\
   \  let loc_shift ~loc l = l :: loc\n\n\
   \  let loc_reduce ~loc = function\n\
@@ -89,6 +74,11 @@ let state_lib =
   \      let l = fst (List.nth loc (n - 1)), snd (List.hd loc) in\n\
   \      l :: skip n loc\n\
   \  ;;\n"
+;;
+
+let epilogue =
+  "let error_token () = !States.error_token\n\
+   let expected_tokens () = !States.expected_tokens\n"
 ;;
 
 let iteri2 f xs ys =
@@ -425,22 +415,22 @@ struct
       "%s\n\
        %t\n\n\
        %t\n\
-       %s\n\
        module Actions = struct\n\
        %s\n\
        %tend\n\n\
        module States = struct\n\
        %s\n\
        %tend\n\n\
-       %t"
-      header
+       %t\n\
+       %s"
+      prelude
       (fun f -> List.iter (write_string f) A.automaton.a_header)
       (fun f -> write_term_type f G.symbols)
-      prelude
       action_lib
       (fun f -> IntMap.iter (write_semantic_action f) A.automaton.a_actions)
       state_lib
       (fun f -> IntMap.bindings A.automaton.a_states |> state_letrec (write_state f))
       (fun f -> List.iter (write_entry f) A.automaton.a_starting)
+      epilogue
   ;;
 end

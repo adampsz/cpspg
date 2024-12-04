@@ -26,26 +26,6 @@ type token =
   | CODE of (code)
   | BAR
 
-exception
-  UnexpectedToken of
-    { token : token
-    ; expected : string list
-    ; position : (Lexing.position * Lexing.position)
-    }
-
-let _ =
-  Printexc.register_printer (function
-    | UnexpectedToken { expected; position = pos, _; _ } ->
-      Some
-        (Printf.sprintf
-           "UnexpectedToken: at %s:%d:%d, expected: %s"
-           pos.pos_fname
-           pos.pos_lnum
-           pos.pos_cnum
-           (String.concat ", " expected))
-    | _ -> None)
-;;
-
 module Actions = struct
   let _kw_endpos ~loc _ =
     match loc with
@@ -111,12 +91,16 @@ module States = struct
   let lexbuf = ref (Lexing.from_string String.empty)
   let peeked = ref None
   let lexbuf_fallback_p = ref Lexing.dummy_pos
+  let error_token = ref None
+  let expected_tokens = ref [] 
 
   let setup lf lb =
     lexfun := lf;
     lexbuf := lb;
     peeked := None;
-    lexbuf_fallback_p := !lexbuf.lex_curr_p
+    lexbuf_fallback_p := !lexbuf.lex_curr_p;
+    error_token := None;
+    expected_tokens := []
   ;;
 
   let shift () =
@@ -139,8 +123,10 @@ module States = struct
   let lookahead () = fst (peek ())
 
   let fail expected =
-      let token, position = peek () in
-      raise (UnexpectedToken { token; expected; position })
+      let token, _ = peek () in
+      error_token := Some token;
+      expected_tokens := expected;
+      raise Parsing.Parse_error
     ;;
 
   let loc_shift ~loc l = l :: loc
@@ -1620,3 +1606,6 @@ let grammar lexfun lexbuf =
   States.setup lexfun lexbuf;
   States.state_0 ~loc:[] (fun x -> x)
 ;;
+
+let error_token () = !States.error_token
+let expected_tokens () = !States.expected_tokens
