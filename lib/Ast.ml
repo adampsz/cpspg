@@ -29,6 +29,7 @@ type decl =
   | DeclLeft of symbol list
   | DeclRight of symbol list
   | DeclNonassoc of symbol list
+  | DeclCode of string node
 
 type producer =
   { id : string node option
@@ -47,7 +48,6 @@ type rule =
   }
 
 type t =
-  { header : string node
-  ; decls : decl list
+  { decls : decl list
   ; rules : rule list
   }

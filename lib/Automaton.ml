@@ -81,17 +81,17 @@ type action =
   | Shift (** Eat one temrinal from input. *)
   | Reduce of (int * int) (** `Reduce (i, j)` - reduce j-th item from i-th group. *)
 
-(** LR(0)/LR(1) state. 
+(** LR(0)/LR(1) state.
     INVARIANT: groups are sorted by prefix length, in descending order. *)
 type state =
   { s_kernel : group list
-      (** Item groups, sorted descending by prefix length, and then alphabetically. *)
+  (** Item groups, sorted descending by prefix length, and then alphabetically. *)
   ; s_closure : group list
-      (** Additional item groups added by CLOSURE, not present in kernel *)
+  (** Additional item groups added by CLOSURE, not present in kernel *)
   ; s_goto : int SymbolMap.t (** Successors *)
   ; s_action : (TermSet.t * action) list
-      (** Map from lookahead terminal symbol to
-          the corresponding parsing decision. *)
+  (** Map from lookahead terminal symbol to
+      the corresponding parsing decision. *)
   }
 
 type term_info =
@@ -106,7 +106,7 @@ type nterm_info =
   }
 
 type t =
-  { a_header : string node
+  { a_header : string node list
   ; a_actions : semantic_action IntMap.t
   ; a_states : state IntMap.t
   ; a_starting : (Nonterminal.t * int) list

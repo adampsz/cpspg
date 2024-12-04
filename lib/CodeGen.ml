@@ -434,7 +434,7 @@ struct
        %tend\n\n\
        %t"
       header
-      (fun f -> write_string f A.automaton.a_header)
+      (fun f -> List.iter (write_string f) A.automaton.a_header)
       (fun f -> write_term_type f G.symbols)
       prelude
       action_lib

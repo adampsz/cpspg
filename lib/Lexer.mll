@@ -71,6 +71,7 @@ rule main = parse
   | "%binary"   { DNONASSOC }
   | "%prec"     { DPREC }
   | "%%"        { DSEP }
+  | "%{"        { DCODE (wrapped "  " "  " (dcode 0) lexbuf |> fst) }
 
   | "%\\" { DSEP }
   | "%<"  { DLEFT }
@@ -87,8 +88,7 @@ rule main = parse
   | uppercase identchar* as i { TID i }
 
   | '<'  { TYPE (wrapped " " " " (tag 0) lexbuf |> fst) }
-  | "{"  { CODE (wrapped " " " " (code "}" 0 []) lexbuf) }
-  | "%{" { CODE (wrapped "  " "  " (code "%}" 0 []) lexbuf) }
+  | "{"  { CODE (wrapped " " " " (code 0 []) lexbuf) }
 
   | eof { EOF }
 
@@ -98,15 +98,15 @@ and tag depth eat = parse
 
   | "->" { eat lexbuf; tag depth eat lexbuf }
   | '>'  { if depth > 0 then (eat lexbuf; tag depth eat lexbuf) }
-  
+
   | newline { new_line lexbuf; eat lexbuf; tag depth eat lexbuf }
   | eof     { failwith "unterminated type tag" }
   | _       { eat lexbuf; tag depth eat lexbuf }
 
-and code e depth kw eat = parse
-  | '[' | '(' | '{' { eat lexbuf; code e (depth + 1) kw eat lexbuf }
-  | ']' | ')'       { eat lexbuf; code e (depth - 1) kw eat lexbuf }
-  | "}" | "%}" as c { if depth > 0 || c <> e then (eat lexbuf; code e (depth - 1) kw eat lexbuf) else kw }
+and code depth kw eat = parse
+  | '[' | '(' | '{' { eat lexbuf; code (depth + 1) kw eat lexbuf }
+  | ']' | ')'       { eat lexbuf; code (depth - 1) kw eat lexbuf }
+  | "}"             { if depth > 0 then (eat lexbuf; code (depth - 1) kw eat lexbuf) else kw }
 
   | "$startpos"
   | "$endpos"
@@ -118,19 +118,31 @@ and code e depth kw eat = parse
   | "$sloc" as k
     { let k = keyword_of_string k, (lexbuf.lex_start_p, lexbuf.lex_curr_p) in
       eat lexbuf;
-      code e depth (k :: kw) eat lexbuf }
+      code depth (k :: kw) eat lexbuf }
 
   | '$' (['0'-'9']+ as i)
     { let k = KwArg (int_of_string i), (lexbuf.lex_start_p, lexbuf.lex_curr_p) in
       eat lexbuf;
-      code e depth (k :: kw) eat lexbuf }
+      code depth (k :: kw) eat lexbuf }
 
-  | '"'  { eat lexbuf; string eat lexbuf; eat lexbuf; code e depth kw eat lexbuf }
-  | "(*" { eat lexbuf; comment 0 eat lexbuf; eat lexbuf; code e depth kw eat lexbuf }
+  | '"'  { eat lexbuf; string eat lexbuf;    eat lexbuf; code depth kw eat lexbuf }
+  | "(*" { eat lexbuf; comment 0 eat lexbuf; eat lexbuf; code depth kw eat lexbuf }
 
-  | newline { new_line lexbuf; eat lexbuf; code e depth kw eat lexbuf }
+  | newline { new_line lexbuf; eat lexbuf; code depth kw eat lexbuf }
   | eof     { failwith "unterminated code" }
-  | _       { eat lexbuf; code e depth kw eat lexbuf }
+  | _       { eat lexbuf; code depth kw eat lexbuf }
+
+and dcode depth eat = parse
+  | '[' | '(' | '{' { eat lexbuf; dcode (depth + 1) eat lexbuf }
+  | ']' | ')' | '}' { eat lexbuf; dcode (depth - 1) eat lexbuf }
+  | "%}"            { if depth > 0 then (eat lexbuf; dcode (depth - 1) eat lexbuf) }
+
+  | '"'  { eat lexbuf; string eat lexbuf;    eat lexbuf; dcode depth eat lexbuf }
+  | "(*" { eat lexbuf; comment 0 eat lexbuf; eat lexbuf; dcode depth eat lexbuf }
+
+  | newline { new_line lexbuf; eat lexbuf; dcode depth eat lexbuf }
+  | eof     { failwith "unterminated code" }
+  | _       { eat lexbuf; dcode depth eat lexbuf }
 
 and string eat = parse
   | "\\\\"  { eat lexbuf; string eat lexbuf }

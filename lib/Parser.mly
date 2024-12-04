@@ -10,6 +10,7 @@ let mknode ~loc data = { loc; data }
 
 %token<string> ID TID TYPE
 %token<code> CODE
+%token<string> DCODE
 %token DTOKEN DTYPE DSTART DLEFT DRIGHT DNONASSOC DPREC DSEP
 %token COLON SEMI BAR EQ
 %token EOF
@@ -17,7 +18,7 @@ let mknode ~loc data = { loc; data }
 %%
 
 grammar:
-    | header=hcode decls=decls DSEP rules=rules EOF { { header; decls; rules } }
+    | decls=decls DSEP rules=rules EOF { { decls; rules } }
 ;
 
 decls:
@@ -26,6 +27,7 @@ decls:
 ;
 
 decl:
+    | code=DCODE             { DeclCode (mknode ~loc:$loc code) }
     | DTOKEN tp=tp xs=tids   { DeclToken (Some tp, xs) }
     | DTOKEN xs=tids         { DeclToken (None, xs) }
     | DSTART tp=tp xs=ids    { DeclStart (Some tp, xs) }
@@ -98,4 +100,3 @@ id:    x=ID   { mknode ~loc:$loc x };
 tid:   x=TID  { mknode ~loc:$loc x };
 tp:    x=TYPE { mknode ~loc:$loc x };
 code:  x=CODE { mknode ~loc:$loc x };
-hcode: x=CODE { mknode ~loc:$loc (fst x) };

@@ -9,10 +9,17 @@ module Run (S : Types.Settings) (A : Types.Ast) : Types.Grammar = struct
     | PrecTerm of Terminal.t
     | PrecDummy of string
 
-  let header = A.ast.header
   let term = Hashtbl.create 16
   let nterm = Hashtbl.create 16
   let prec = Hashtbl.create 16
+
+  let header =
+    let get_code = function
+      | Ast.DeclCode code -> Some code
+      | _ -> None
+    in
+    List.filter_map get_code A.ast.decls
+  ;;
 
   (* Define terminals *)
   let _ =
