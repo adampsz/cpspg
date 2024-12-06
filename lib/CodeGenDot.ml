@@ -1,12 +1,18 @@
-module Make (I : sig
-  val term : Automaton.Terminal.t -> Automaton.term_info
-  val nterm : Automaton.Nonterminal.t -> Automaton.nterm_info
-end) =
+module type DotCode = sig
+  include Types.Code
+
+  (* These functions are used in comments in other codegen backends *)
+  val fmt_state : Format.formatter -> Automaton.state -> unit
+  val fmt_state_shifts : Format.formatter -> Automaton.state -> unit
+  val fmt_state_actions : Format.formatter -> Automaton.state -> unit
+end
+
+module Make (S : Types.Settings) (G : Types.Grammar) (A : Types.Automaton) : DotCode =
 struct
   open Automaton
 
-  let term_name t = (I.term t).ti_name.data
-  let nterm_name n = (I.nterm n).ni_name.data
+  let term_name t = (G.term t).ti_name.data
+  let nterm_name n = (G.nterm n).ni_name.data
 
   let fmt_arg f = function
     | Term t -> Format.pp_print_string f (term_name t)
@@ -72,4 +78,6 @@ struct
     IntMap.iter fmt_node automaton.a_states;
     Format.fprintf f "}\n"
   ;;
+
+  let write f = fmt_automaton f A.automaton
 end

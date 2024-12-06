@@ -1,7 +1,7 @@
-let usage = "usage: cpspg [options] sourcefile"
+let usage = "usage: cpspg [options] <filename>"
 let source_name = ref None
 let output_name = ref None
-let output_automaton = ref None
+let output_format = ref ".ml"
 let grammar_kind = ref Cpspg.Types.LALR
 let codegen_line_directives = ref true
 let codegen_comments = ref false
@@ -16,11 +16,14 @@ let codegen_readable () =
 
 let specs =
   [ ( "-o"
-    , Arg.String (fun x -> output_name := Some x)
+    , Arg.String
+        (fun x ->
+          output_name := Some x;
+          output_format := Filename.extension x)
     , "<file>\tSet output file name to <file>" )
-  ; ( "--automaton"
-    , Arg.String (fun x -> output_automaton := Some x)
-    , "<file>\tDump automaton graph in .dot format to <file>" )
+  ; ( "-f"
+    , Arg.String (fun x -> output_format := "." ^ x)
+    , "<format>\tSet output format to <format> (default: detect)" )
     (* Grammar kind *)
   ; ( "--lr0"
     , Arg.Unit (fun _ -> grammar_kind := Cpspg.Types.LR0)
@@ -96,15 +99,15 @@ let main () =
   let module Conflicts = Warning.Conflict (Grammar) (Automaton) in
   List.iter (fun (i, s, a) -> Conflicts.report i s a) !conflicts;
   (* Fourth pass: initialize code generation *)
-  let module Code = Cpspg.CodeGen.Make (Settings) (Grammar) (Automaton) in
-  let module Graphviz = Cpspg.Graphviz.Make (Grammar) in
-  (* Final work *)
-  Code.write (Format.formatter_of_out_channel output);
-  match !output_automaton with
-  | None -> ()
-  | Some x ->
-    let out = if x = "-" then stdout else open_out x in
-    Graphviz.fmt_automaton (Format.formatter_of_out_channel out) Automaton.automaton
+  let module Code =
+    (val match !output_format with
+         | ".ml" -> (module Cpspg.CodeGenMl.Make (Settings) (Grammar) (Automaton))
+         | ".dot" -> (module Cpspg.CodeGenDot.Make (Settings) (Grammar) (Automaton))
+         | _ -> failwith "Unknown output format"
+      : Cpspg.Types.Code)
+  in
+  (* Write results *)
+  Code.write (Format.formatter_of_out_channel output)
 ;;
 
 let _ =

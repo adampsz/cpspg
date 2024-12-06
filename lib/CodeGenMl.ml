@@ -92,7 +92,7 @@ let iteri2 f xs ys =
 module Make (S : Types.Settings) (G : Types.Grammar) (A : Types.Automaton) : Types.Code =
 struct
   open Automaton
-  module D = Graphviz.Make (G)
+  module D = CodeGenDot.Make (S) (G) (A)
 
   let term_name t = (G.term t).ti_name.data
   let nterm_name n = (G.nterm n).ni_name.data
