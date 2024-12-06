@@ -11,7 +11,7 @@
  (deps Parser.mly)
  (target Parser.ml)
  (enabled_if
-  (= %{env:GEN=} cpspg))
+  (= %{env:GEN=cpspg} cpspg))
  (action
   (run cpspg --comment -o %{target} %{deps})))
 
