@@ -45,7 +45,6 @@ module Actions = struct
   let _kw_symbolstartofs ~loc:_ _ = failwith "unimplemented: $symbolstartofs"
   let _kw_loc ~loc n = _kw_startpos ~loc n, _kw_endpos ~loc n
   let _kw_sloc ~loc:_ _ = failwith "unimplemented: $sloc"
-
   let a0_grammar ~loc:_loc rules decls () = { decls; rules }
   let a1_decls ~loc:_loc xs x () = x :: xs
   let a2_decls ~loc:_loc () = []
@@ -118,16 +117,16 @@ module States = struct
       and loc = !lexbuf.lex_start_p, !lexbuf.lex_curr_p in
       peeked := Some (tok, loc);
       tok, loc
-    ;;
+  ;;
 
   let lookahead () = fst (peek ())
 
   let fail expected =
-      let token, _ = peek () in
-      error_token := Some token;
-      expected_tokens := expected;
-      raise Parsing.Parse_error
-    ;;
+    let token, _ = peek () in
+    error_token := Some token;
+    expected_tokens := expected;
+    raise Parsing.Parse_error
+  ;;
 
   let loc_shift ~loc l = l :: loc
 

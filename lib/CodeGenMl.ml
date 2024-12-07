@@ -5,77 +5,88 @@ module SymbolMap = Map.Make (Automaton.Symbol)
 (* FIXME: should we include -redunant-{case, subpat}? They trigger warnings
    in grammars with unresolved conflicts, but maybe it's a good thing? *)
 let prelude =
-  "[@@@warning \"-unused-rec-flag\"]\n\
-   [@@@warning \"-redundant-case\"]\n\
-   [@@@warning \"-redundant-subpat\"]\n"
+  {|[@@@warning "-unused-rec-flag"]
+[@@@warning "-redundant-case"]
+[@@@warning "-redundant-subpat"]
+|}
 ;;
 
 let action_lib =
-  "  let _kw_endpos ~loc _ =\n\
-  \    match loc with\n\
-  \    | l :: _ -> snd l\n\
-  \    | [] -> Lexing.dummy_pos\n\
-  \  ;;\n\n\
-  \  let _kw_startpos ~loc n =\n\
-  \    match List.nth_opt loc (n - 1) with\n\
-  \    | Some l -> fst l\n\
-  \    | None -> _kw_endpos ~loc n\n\
-  \  ;;\n\n\
-  \  let _kw_symbolstartpos ~loc:_ _ = failwith \"unimplemented: $symbolstartpos\"\n\
-  \  let _kw_startofs ~loc:_ _ = failwith \"unimplemented: $startofs\"\n\
-  \  let _kw_endofs ~loc:_ _ = failwith \"unimplemented: $endofs\"\n\
-  \  let _kw_symbolstartofs ~loc:_ _ = failwith \"unimplemented: $symbolstartofs\"\n\
-  \  let _kw_loc ~loc n = _kw_startpos ~loc n, _kw_endpos ~loc n\n\
-  \  let _kw_sloc ~loc:_ _ = failwith \"unimplemented: $sloc\"\n"
+  {|  let _kw_endpos ~loc _ =
+    match loc with
+    | l :: _ -> snd l
+    | [] -> Lexing.dummy_pos
+  ;;
+
+  let _kw_startpos ~loc n =
+    match List.nth_opt loc (n - 1) with
+    | Some l -> fst l
+    | None -> _kw_endpos ~loc n
+  ;;
+
+  let _kw_symbolstartpos ~loc:_ _ = failwith "unimplemented: $symbolstartpos"
+  let _kw_startofs ~loc:_ _ = failwith "unimplemented: $startofs"
+  let _kw_endofs ~loc:_ _ = failwith "unimplemented: $endofs"
+  let _kw_symbolstartofs ~loc:_ _ = failwith "unimplemented: $symbolstartofs"
+  let _kw_loc ~loc n = _kw_startpos ~loc n, _kw_endpos ~loc n
+  let _kw_sloc ~loc:_ _ = failwith "unimplemented: $sloc"|}
 ;;
 
 let state_lib f compat =
   Format.fprintf
     f
-    "  let lexfun = ref (fun _ -> assert false)\n\
-    \  let lexbuf = ref (Lexing.from_string String.empty)\n\
-    \  let peeked = ref None\n\
-    \  let lexbuf_fallback_p = ref Lexing.dummy_pos\n\
-    \  let error_token = ref None\n\
-    \  let expected_tokens = ref []\n\n\
-    \  let setup lf lb =\n\
-    \    lexfun := lf;\n\
-    \    lexbuf := lb;\n\
-    \    peeked := None;\n\
-    \    lexbuf_fallback_p := !lexbuf.lex_curr_p;\n\
-    \    error_token := None;\n\
-    \    expected_tokens := []\n\
-    \  ;;\n\n\
-    \  let shift () =\n\
-    \    let sym = Option.get !peeked in\n\
-    \    peeked := None;\n\
-    \    lexbuf_fallback_p := !lexbuf.lex_curr_p;\n\
-    \    sym\n\
-    \  ;;\n\n\
-    \  let peek () =\n\
-    \    match !peeked with\n\
-    \    | Some p -> p\n\
-    \    | None ->\n\
-    \      let tok = !lexfun !lexbuf\n\
-    \      and loc = !lexbuf.lex_start_p, !lexbuf.lex_curr_p in\n\
-    \      peeked := Some (tok, loc);\n\
-    \      tok, loc\n\
-    \    ;;\n\n\
-    \  let lookahead () = fst (peek ())\n\n\
-    \  let fail expected =\n\
-    \      let token, _ = peek () in\n\
-    \      error_token := Some token;\n\
-    \      expected_tokens := expected;\n\
-    \      raise Parsing.Parse_error\n\
-    \    ;;\n\n\
-    \  let loc_shift ~loc l = l :: loc\n\n\
-    \  let loc_reduce ~loc = function\n\
-    \    | 0 -> (!lexbuf_fallback_p, !lexbuf_fallback_p) :: loc\n\
-    \    | n ->\n\
-    \      let rec skip n xs = if n = 0 then xs else skip (n - 1) (List.tl xs) in\n\
-    \      let l = fst (List.nth loc (n - 1)), snd (List.hd loc) in\n\
-     %s      l :: skip n loc\n\
-    \  ;;\n"
+    {|  let lexfun = ref (fun _ -> assert false)
+  let lexbuf = ref (Lexing.from_string String.empty)
+  let peeked = ref None
+  let lexbuf_fallback_p = ref Lexing.dummy_pos
+  let error_token = ref None
+  let expected_tokens = ref []
+
+  let setup lf lb =
+    lexfun := lf;
+    lexbuf := lb;
+    peeked := None;
+    lexbuf_fallback_p := !lexbuf.lex_curr_p;
+    error_token := None;
+    expected_tokens := []
+  ;;
+
+  let shift () =
+    let sym = Option.get !peeked in
+    peeked := None;
+    lexbuf_fallback_p := !lexbuf.lex_curr_p;
+    sym
+  ;;
+
+  let peek () =
+    match !peeked with
+    | Some p -> p
+    | None ->
+      let tok = !lexfun !lexbuf
+      and loc = !lexbuf.lex_start_p, !lexbuf.lex_curr_p in
+      peeked := Some (tok, loc);
+      tok, loc
+  ;;
+
+  let lookahead () = fst (peek ())
+
+  let fail expected =
+    let token, _ = peek () in
+    error_token := Some token;
+    expected_tokens := expected;
+    raise Parsing.Parse_error
+  ;;
+
+  let loc_shift ~loc l = l :: loc
+
+  let loc_reduce ~loc = function
+    | 0 -> (!lexbuf_fallback_p, !lexbuf_fallback_p) :: loc
+    | n ->
+      let rec skip n xs = if n = 0 then xs else skip (n - 1) (List.tl xs) in
+      let l = fst (List.nth loc (n - 1)), snd (List.hd loc) in%s
+      l :: skip n loc
+  ;;
+|}
     (if compat then "      Parsing.set_loc loc n;\n" else "")
 ;;
 
@@ -135,8 +146,9 @@ end
 ;;
 
 let epilogue =
-  "let error_token () = !States.error_token\n\
-   let expected_tokens () = !States.expected_tokens\n"
+  {|let error_token () = !States.error_token
+let expected_tokens () = !States.expected_tokens
+|}
 ;;
 
 let iteri2 f xs ys =
