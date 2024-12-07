@@ -29,51 +29,109 @@ let action_lib =
   \  let _kw_sloc ~loc:_ _ = failwith \"unimplemented: $sloc\"\n"
 ;;
 
-let state_lib =
-  "  let lexfun = ref (fun _ -> assert false)\n\
-  \  let lexbuf = ref (Lexing.from_string String.empty)\n\
-  \  let peeked = ref None\n\
-  \  let lexbuf_fallback_p = ref Lexing.dummy_pos\n\
-  \  let error_token = ref None\n\
-  \  let expected_tokens = ref [] \n\n\
-  \  let setup lf lb =\n\
-  \    lexfun := lf;\n\
-  \    lexbuf := lb;\n\
-  \    peeked := None;\n\
-  \    lexbuf_fallback_p := !lexbuf.lex_curr_p;\n\
-  \    error_token := None;\n\
-  \    expected_tokens := []\n\
-  \  ;;\n\n\
-  \  let shift () =\n\
-  \    let sym = Option.get !peeked in\n\
-  \    peeked := None;\n\
-  \    lexbuf_fallback_p := !lexbuf.lex_curr_p;\n\
-  \    sym\n\
-  \  ;;\n\n\
-  \  let peek () =\n\
-  \    match !peeked with\n\
-  \    | Some p -> p\n\
-  \    | None ->\n\
-  \      let tok = !lexfun !lexbuf\n\
-  \      and loc = !lexbuf.lex_start_p, !lexbuf.lex_curr_p in\n\
-  \      peeked := Some (tok, loc);\n\
-  \      tok, loc\n\
-  \    ;;\n\n\
-  \  let lookahead () = fst (peek ())\n\n\
-  \  let fail expected =\n\
-  \      let token, _ = peek () in\n\
-  \      error_token := Some token;\n\
-  \      expected_tokens := expected;\n\
-  \      raise Parsing.Parse_error\n\
-  \    ;;\n\n\
-  \  let loc_shift ~loc l = l :: loc\n\n\
-  \  let loc_reduce ~loc = function\n\
-  \    | 0 -> (!lexbuf_fallback_p, !lexbuf_fallback_p) :: loc\n\
-  \    | n ->\n\
-  \      let rec skip n xs = if n = 0 then xs else skip (n - 1) (List.tl xs) in\n\
-  \      let l = fst (List.nth loc (n - 1)), snd (List.hd loc) in\n\
-  \      l :: skip n loc\n\
-  \  ;;\n"
+let state_lib f compat =
+  Format.fprintf
+    f
+    "  let lexfun = ref (fun _ -> assert false)\n\
+    \  let lexbuf = ref (Lexing.from_string String.empty)\n\
+    \  let peeked = ref None\n\
+    \  let lexbuf_fallback_p = ref Lexing.dummy_pos\n\
+    \  let error_token = ref None\n\
+    \  let expected_tokens = ref []\n\n\
+    \  let setup lf lb =\n\
+    \    lexfun := lf;\n\
+    \    lexbuf := lb;\n\
+    \    peeked := None;\n\
+    \    lexbuf_fallback_p := !lexbuf.lex_curr_p;\n\
+    \    error_token := None;\n\
+    \    expected_tokens := []\n\
+    \  ;;\n\n\
+    \  let shift () =\n\
+    \    let sym = Option.get !peeked in\n\
+    \    peeked := None;\n\
+    \    lexbuf_fallback_p := !lexbuf.lex_curr_p;\n\
+    \    sym\n\
+    \  ;;\n\n\
+    \  let peek () =\n\
+    \    match !peeked with\n\
+    \    | Some p -> p\n\
+    \    | None ->\n\
+    \      let tok = !lexfun !lexbuf\n\
+    \      and loc = !lexbuf.lex_start_p, !lexbuf.lex_curr_p in\n\
+    \      peeked := Some (tok, loc);\n\
+    \      tok, loc\n\
+    \    ;;\n\n\
+    \  let lookahead () = fst (peek ())\n\n\
+    \  let fail expected =\n\
+    \      let token, _ = peek () in\n\
+    \      error_token := Some token;\n\
+    \      expected_tokens := expected;\n\
+    \      raise Parsing.Parse_error\n\
+    \    ;;\n\n\
+    \  let loc_shift ~loc l = l :: loc\n\n\
+    \  let loc_reduce ~loc = function\n\
+    \    | 0 -> (!lexbuf_fallback_p, !lexbuf_fallback_p) :: loc\n\
+    \    | n ->\n\
+    \      let rec skip n xs = if n = 0 then xs else skip (n - 1) (List.tl xs) in\n\
+    \      let l = fst (List.nth loc (n - 1)), snd (List.hd loc) in\n\
+     %s      l :: skip n loc\n\
+    \  ;;\n"
+    (if compat then "      Parsing.set_loc loc n;\n" else "")
+;;
+
+let parsing_compat_mod =
+  {|module Parsing : sig
+    include module type of Stdlib.Parsing
+    val set_loc : (Lexing.position * Lexing.position) list -> int -> unit
+  end = struct
+  include Stdlib.Parsing
+
+  let action_loc = ref []
+  let action_len = ref 0
+
+  let set_loc loc n =
+    action_loc := loc;
+    action_len := n
+
+  let symbol_start_pos _ =
+    let rec take_rev acc k = function
+      | _ when k = 0 -> acc
+      | [] -> acc
+      | x :: xs -> take_rev (x :: acc) (k - 1) xs
+    and loop = function
+      | [] -> Lexing.dummy_pos
+      | [ (st, _) ] -> st
+      | (st, en) :: _ when st <> en -> st
+      | _ :: loc -> loop loc
+    in
+    loop (take_rev [] !action_len !action_loc)
+  ;;
+
+  let symbol_end_pos _ =
+    match !action_loc with
+    | (_, en) :: _ -> en
+    | [] -> Lexing.dummy_pos
+  ;;
+
+  let rhs_start_pos n = List.nth !action_loc (!action_len - (n - 1)) |> fst
+  let rhs_end_pos n = List.nth !action_loc (!action_len - (n - 1)) |> snd
+  let symbol_start () = (symbol_start_pos ()).pos_cnum
+  let symbol_end () = (symbol_end_pos ()).pos_cnum
+  let rhs_start n = (rhs_start_pos n).pos_cnum
+  let rhs_end n = (rhs_end_pos n).pos_cnum
+
+  let stub name =
+    failwith ("function " ^ name ^ " is not included in the compatibility module")
+  ;;
+
+  let clear_parser _ = stub "clear_parser"
+  let set_trace _ = stub "set_trace"
+  let yyparse _ _ _ _ = stub "yyparse"
+  let peek_val _ _ = stub "peek_val"
+  let is_current_lookahead _ = stub "is_current_lookahead"
+  let parse_error _ = stub "parse_error"
+end
+|}
 ;;
 
 let epilogue =
@@ -241,8 +299,11 @@ struct
   ;;
 
   let write_action_reduce f state lookahead i j =
-    let write_loc_update f n =
-      Format.fprintf f "\n      and loc = loc_reduce ~loc %d" n
+    let write_action f n g i =
+      let c f = write_semantic_action_call f g i in
+      if S.locations
+      then Format.fprintf f "let loc = loc_reduce ~loc %d\n      and x =%t in" n c
+      else Format.fprintf f "let x=%t in" c
     in
     if S.comments then Format.fprintf f "    (* Reduce *)\n";
     let group = List.nth (state.s_kernel @ state.s_closure) i in
@@ -250,10 +311,9 @@ struct
     and item = List.nth group.g_items j in
     Format.fprintf
       f
-      "    %t->\n      let x =%t%t in\n      %t%s x\n"
+      "    %t->\n      %t\n      %t%s x\n"
       (fun f -> write_term_patterns f lookahead)
-      (fun f -> write_semantic_action_call f group item)
-      (fun f -> if S.locations then write_loc_update f n)
+      (fun f -> write_action f n group item)
       (fun f -> write_cont_id f group i)
       (if S.locations then " ~loc" else "")
   ;;
@@ -413,22 +473,23 @@ struct
     Format.fprintf
       f
       "%s\n\
-       %t\n\n\
+       %t%t\n\n\
        %t\n\
        module Actions = struct\n\
        %s\n\
        %tend\n\n\
        module States = struct\n\
-       %s\n\
+       %t\n\
        %tend\n\n\
        %t\n\
        %s"
       prelude
+      (fun f -> if S.compat then Format.fprintf f "%s\n\n" parsing_compat_mod)
       (fun f -> List.iter (write_string f) A.automaton.a_header)
       (fun f -> write_term_type f G.symbols)
       action_lib
       (fun f -> IntMap.iter (write_semantic_action f) A.automaton.a_actions)
-      state_lib
+      (fun f -> state_lib f S.compat)
       (fun f -> IntMap.bindings A.automaton.a_states |> state_letrec (write_state f))
       (fun f -> List.iter (write_entry f) A.automaton.a_starting)
       epilogue

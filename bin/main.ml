@@ -7,6 +7,7 @@ let codegen_line_directives = ref true
 let codegen_comments = ref false
 let codegen_readable_ids = ref false
 let codegen_locations = ref true
+let codegen_compat = ref false
 
 let codegen_readable () =
   codegen_line_directives := false;
@@ -52,6 +53,9 @@ let specs =
     , Arg.Unit codegen_readable
     , "\tMake generated code more readable (implies --comment, --readable-ids and \
        --no-line-directives)" )
+  ; ( "--compat"
+    , Arg.Set codegen_compat
+    , "\tGenerate code with OCaml's Parsing module compability" )
   ]
   |> Arg.align
 ;;
@@ -75,6 +79,7 @@ let main () =
 
     (* Codegen *)
     let locations = !codegen_locations
+    let compat = !codegen_compat
     let line_directives = !codegen_line_directives
     let comments = !codegen_comments
     let readable_ids = !codegen_readable_ids

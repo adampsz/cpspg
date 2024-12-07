@@ -92,7 +92,7 @@ module States = struct
   let peeked = ref None
   let lexbuf_fallback_p = ref Lexing.dummy_pos
   let error_token = ref None
-  let expected_tokens = ref [] 
+  let expected_tokens = ref []
 
   let setup lf lb =
     lexfun := lf;
@@ -206,8 +206,8 @@ module States = struct
       state_28 ~loc _c2_decl
     (* Reduce *)
     | DSEP ->
-      let x = Actions.a2_decls ~loc ()
-      and loc = loc_reduce ~loc 0 in
+      let loc = loc_reduce ~loc 0
+      and x = Actions.a2_decls ~loc () in
       _c1_decls ~loc x
     | _ -> fail [ "DCODE"; "DTOKEN"; "DTYPE"; "DSTART"; "DLEFT"; "DRIGHT"; "DNONASSOC"; "DSEP" ]
 
@@ -221,8 +221,8 @@ module States = struct
     match lookahead () with
     (* Reduce *)
     | DCODE _ | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
-      let x = Actions.a11_decl ~loc a0_DCODE ()
-      and loc = loc_reduce ~loc 1 in
+      let loc = loc_reduce ~loc 1
+      and x = Actions.a11_decl ~loc a0_DCODE () in
       _c0_decl ~loc x
     | _ -> fail [ "DCODE"; "DTOKEN"; "DTYPE"; "DSTART"; "DLEFT"; "DRIGHT"; "DNONASSOC"; "DSEP" ]
 
@@ -259,8 +259,8 @@ module States = struct
       state_4 ~loc x _c3_tp
     (* Reduce *)
     | DCODE _ | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
-      let x = Actions.a29_tids ~loc ()
-      and loc = loc_reduce ~loc 0 in
+      let loc = loc_reduce ~loc 0
+      and x = Actions.a29_tids ~loc () in
       _c1_tids ~loc x
     | _ -> fail [ "TID"; "TYPE"; "DCODE"; "DTOKEN"; "DTYPE"; "DSTART"; "DLEFT"; "DRIGHT"; "DNONASSOC"; "DSEP" ]
 
@@ -274,8 +274,8 @@ module States = struct
     match lookahead () with
     (* Reduce *)
     | ID _ | TID _ | CODE _ | DCODE _ | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DPREC | DSEP ->
-      let x = Actions.a35_tid ~loc a0_TID ()
-      and loc = loc_reduce ~loc 1 in
+      let loc = loc_reduce ~loc 1
+      and x = Actions.a35_tid ~loc a0_TID () in
       _c0_tid ~loc x
     | _ -> fail [ "ID"; "TID"; "CODE"; "DCODE"; "DTOKEN"; "DTYPE"; "DSTART"; "DLEFT"; "DRIGHT"; "DNONASSOC"; "DPREC"; "DSEP" ]
 
@@ -289,8 +289,8 @@ module States = struct
     match lookahead () with
     (* Reduce *)
     | ID _ | TID _ | DCODE _ | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
-      let x = Actions.a36_tp ~loc a0_TYPE ()
-      and loc = loc_reduce ~loc 1 in
+      let loc = loc_reduce ~loc 1
+      and x = Actions.a36_tp ~loc a0_TYPE () in
       _c0_tp ~loc x
     | _ -> fail [ "ID"; "TID"; "DCODE"; "DTOKEN"; "DTYPE"; "DSTART"; "DLEFT"; "DRIGHT"; "DNONASSOC"; "DSEP" ]
 
@@ -304,8 +304,8 @@ module States = struct
     match lookahead () with
     (* Reduce *)
     | DCODE _ | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
-      let x = Actions.a6_decl ~loc a0_tids ()
-      and loc = loc_reduce ~loc 2 in
+      let loc = loc_reduce ~loc 2
+      and x = Actions.a6_decl ~loc a0_tids () in
       _c0_decl ~loc x
     | _ -> fail [ "DCODE"; "DTOKEN"; "DTYPE"; "DSTART"; "DLEFT"; "DRIGHT"; "DNONASSOC"; "DSEP" ]
 
@@ -332,8 +332,8 @@ module States = struct
       state_3 ~loc x _c2_tid
     (* Reduce *)
     | DCODE _ | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
-      let x = Actions.a29_tids ~loc ()
-      and loc = loc_reduce ~loc 0 in
+      let loc = loc_reduce ~loc 0
+      and x = Actions.a29_tids ~loc () in
       _c1_tids ~loc x
     | _ -> fail [ "TID"; "DCODE"; "DTOKEN"; "DTYPE"; "DSTART"; "DLEFT"; "DRIGHT"; "DNONASSOC"; "DSEP" ]
 
@@ -347,8 +347,8 @@ module States = struct
     match lookahead () with
     (* Reduce *)
     | DCODE _ | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
-      let x = Actions.a28_tids ~loc a0_tids a1_tid ()
-      and loc = loc_reduce ~loc 2 in
+      let loc = loc_reduce ~loc 2
+      and x = Actions.a28_tids ~loc a0_tids a1_tid () in
       _c0_tids ~loc x
     | _ -> fail [ "DCODE"; "DTOKEN"; "DTYPE"; "DSTART"; "DLEFT"; "DRIGHT"; "DNONASSOC"; "DSEP" ]
 
@@ -375,8 +375,8 @@ module States = struct
       state_3 ~loc x _c2_tid
     (* Reduce *)
     | DCODE _ | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
-      let x = Actions.a29_tids ~loc ()
-      and loc = loc_reduce ~loc 0 in
+      let loc = loc_reduce ~loc 0
+      and x = Actions.a29_tids ~loc () in
       _c1_tids ~loc x
     | _ -> fail [ "TID"; "DCODE"; "DTOKEN"; "DTYPE"; "DSTART"; "DLEFT"; "DRIGHT"; "DNONASSOC"; "DSEP" ]
 
@@ -390,8 +390,8 @@ module States = struct
     match lookahead () with
     (* Reduce *)
     | DCODE _ | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
-      let x = Actions.a3_decl ~loc a0_tids a1_tp ()
-      and loc = loc_reduce ~loc 3 in
+      let loc = loc_reduce ~loc 3
+      and x = Actions.a3_decl ~loc a0_tids a1_tp () in
       _c0_decl ~loc x
     | _ -> fail [ "DCODE"; "DTOKEN"; "DTYPE"; "DSTART"; "DLEFT"; "DRIGHT"; "DNONASSOC"; "DSEP" ]
 
@@ -449,8 +449,8 @@ module States = struct
       state_3 ~loc x _c4_tid
     (* Reduce *)
     | DCODE _ | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
-      let x = Actions.a31_symbols ~loc ()
-      and loc = loc_reduce ~loc 0 in
+      let loc = loc_reduce ~loc 0
+      and x = Actions.a31_symbols ~loc () in
       _c1_symbols ~loc x
     | _ -> fail [ "ID"; "TID"; "DCODE"; "DTOKEN"; "DTYPE"; "DSTART"; "DLEFT"; "DRIGHT"; "DNONASSOC"; "DSEP" ]
 
@@ -464,8 +464,8 @@ module States = struct
     match lookahead () with
     (* Reduce *)
     | ID _ | TID _ | CODE _ | DCODE _ | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DPREC | DSEP | COLON | EQ ->
-      let x = Actions.a34_id ~loc a0_ID ()
-      and loc = loc_reduce ~loc 1 in
+      let loc = loc_reduce ~loc 1
+      and x = Actions.a34_id ~loc a0_ID () in
       _c0_id ~loc x
     | _ -> fail [ "ID"; "TID"; "CODE"; "DCODE"; "DTOKEN"; "DTYPE"; "DSTART"; "DLEFT"; "DRIGHT"; "DNONASSOC"; "DPREC"; "DSEP"; "COLON"; "EQ" ]
 
@@ -479,8 +479,8 @@ module States = struct
     match lookahead () with
     (* Reduce *)
     | DCODE _ | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
-      let x = Actions.a5_decl ~loc a0_symbols a1_tp ()
-      and loc = loc_reduce ~loc 3 in
+      let loc = loc_reduce ~loc 3
+      and x = Actions.a5_decl ~loc a0_symbols a1_tp () in
       _c0_decl ~loc x
     | _ -> fail [ "DCODE"; "DTOKEN"; "DTYPE"; "DSTART"; "DLEFT"; "DRIGHT"; "DNONASSOC"; "DSEP" ]
 
@@ -520,8 +520,8 @@ module States = struct
       state_3 ~loc x _c4_tid
     (* Reduce *)
     | DCODE _ | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
-      let x = Actions.a31_symbols ~loc ()
-      and loc = loc_reduce ~loc 0 in
+      let loc = loc_reduce ~loc 0
+      and x = Actions.a31_symbols ~loc () in
       _c1_symbols ~loc x
     | _ -> fail [ "ID"; "TID"; "DCODE"; "DTOKEN"; "DTYPE"; "DSTART"; "DLEFT"; "DRIGHT"; "DNONASSOC"; "DSEP" ]
 
@@ -535,8 +535,8 @@ module States = struct
     match lookahead () with
     (* Reduce *)
     | DCODE _ | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
-      let x = Actions.a30_symbols ~loc a0_symbols a1_symbol ()
-      and loc = loc_reduce ~loc 2 in
+      let loc = loc_reduce ~loc 2
+      and x = Actions.a30_symbols ~loc a0_symbols a1_symbol () in
       _c0_symbols ~loc x
     | _ -> fail [ "DCODE"; "DTOKEN"; "DTYPE"; "DSTART"; "DLEFT"; "DRIGHT"; "DNONASSOC"; "DSEP" ]
 
@@ -550,8 +550,8 @@ module States = struct
     match lookahead () with
     (* Reduce *)
     | ID _ | TID _ | CODE _ | DCODE _ | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DPREC | DSEP ->
-      let x = Actions.a32_symbol ~loc a0_id ()
-      and loc = loc_reduce ~loc 1 in
+      let loc = loc_reduce ~loc 1
+      and x = Actions.a32_symbol ~loc a0_id () in
       _c0_symbol ~loc x
     | _ -> fail [ "ID"; "TID"; "CODE"; "DCODE"; "DTOKEN"; "DTYPE"; "DSTART"; "DLEFT"; "DRIGHT"; "DNONASSOC"; "DPREC"; "DSEP" ]
 
@@ -565,8 +565,8 @@ module States = struct
     match lookahead () with
     (* Reduce *)
     | ID _ | TID _ | CODE _ | DCODE _ | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DPREC | DSEP ->
-      let x = Actions.a33_symbol ~loc a0_tid ()
-      and loc = loc_reduce ~loc 1 in
+      let loc = loc_reduce ~loc 1
+      and x = Actions.a33_symbol ~loc a0_tid () in
       _c0_symbol ~loc x
     | _ -> fail [ "ID"; "TID"; "CODE"; "DCODE"; "DTOKEN"; "DTYPE"; "DSTART"; "DLEFT"; "DRIGHT"; "DNONASSOC"; "DPREC"; "DSEP" ]
 
@@ -603,8 +603,8 @@ module States = struct
       state_4 ~loc x _c3_tp
     (* Reduce *)
     | DCODE _ | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
-      let x = Actions.a27_ids ~loc ()
-      and loc = loc_reduce ~loc 0 in
+      let loc = loc_reduce ~loc 0
+      and x = Actions.a27_ids ~loc () in
       _c1_ids ~loc x
     | _ -> fail [ "ID"; "TYPE"; "DCODE"; "DTOKEN"; "DTYPE"; "DSTART"; "DLEFT"; "DRIGHT"; "DNONASSOC"; "DSEP" ]
 
@@ -618,8 +618,8 @@ module States = struct
     match lookahead () with
     (* Reduce *)
     | DCODE _ | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
-      let x = Actions.a7_decl ~loc a0_ids ()
-      and loc = loc_reduce ~loc 2 in
+      let loc = loc_reduce ~loc 2
+      and x = Actions.a7_decl ~loc a0_ids () in
       _c0_decl ~loc x
     | _ -> fail [ "DCODE"; "DTOKEN"; "DTYPE"; "DSTART"; "DLEFT"; "DRIGHT"; "DNONASSOC"; "DSEP" ]
 
@@ -646,8 +646,8 @@ module States = struct
       state_12 ~loc x _c2_id
     (* Reduce *)
     | DCODE _ | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
-      let x = Actions.a27_ids ~loc ()
-      and loc = loc_reduce ~loc 0 in
+      let loc = loc_reduce ~loc 0
+      and x = Actions.a27_ids ~loc () in
       _c1_ids ~loc x
     | _ -> fail [ "ID"; "DCODE"; "DTOKEN"; "DTYPE"; "DSTART"; "DLEFT"; "DRIGHT"; "DNONASSOC"; "DSEP" ]
 
@@ -661,8 +661,8 @@ module States = struct
     match lookahead () with
     (* Reduce *)
     | DCODE _ | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
-      let x = Actions.a26_ids ~loc a0_ids a1_id ()
-      and loc = loc_reduce ~loc 2 in
+      let loc = loc_reduce ~loc 2
+      and x = Actions.a26_ids ~loc a0_ids a1_id () in
       _c0_ids ~loc x
     | _ -> fail [ "DCODE"; "DTOKEN"; "DTYPE"; "DSTART"; "DLEFT"; "DRIGHT"; "DNONASSOC"; "DSEP" ]
 
@@ -689,8 +689,8 @@ module States = struct
       state_12 ~loc x _c2_id
     (* Reduce *)
     | DCODE _ | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
-      let x = Actions.a27_ids ~loc ()
-      and loc = loc_reduce ~loc 0 in
+      let loc = loc_reduce ~loc 0
+      and x = Actions.a27_ids ~loc () in
       _c1_ids ~loc x
     | _ -> fail [ "ID"; "DCODE"; "DTOKEN"; "DTYPE"; "DSTART"; "DLEFT"; "DRIGHT"; "DNONASSOC"; "DSEP" ]
 
@@ -704,8 +704,8 @@ module States = struct
     match lookahead () with
     (* Reduce *)
     | DCODE _ | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
-      let x = Actions.a4_decl ~loc a0_ids a1_tp ()
-      and loc = loc_reduce ~loc 3 in
+      let loc = loc_reduce ~loc 3
+      and x = Actions.a4_decl ~loc a0_ids a1_tp () in
       _c0_decl ~loc x
     | _ -> fail [ "DCODE"; "DTOKEN"; "DTYPE"; "DSTART"; "DLEFT"; "DRIGHT"; "DNONASSOC"; "DSEP" ]
 
@@ -745,8 +745,8 @@ module States = struct
       state_3 ~loc x _c4_tid
     (* Reduce *)
     | DCODE _ | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
-      let x = Actions.a31_symbols ~loc ()
-      and loc = loc_reduce ~loc 0 in
+      let loc = loc_reduce ~loc 0
+      and x = Actions.a31_symbols ~loc () in
       _c1_symbols ~loc x
     | _ -> fail [ "ID"; "TID"; "DCODE"; "DTOKEN"; "DTYPE"; "DSTART"; "DLEFT"; "DRIGHT"; "DNONASSOC"; "DSEP" ]
 
@@ -760,8 +760,8 @@ module States = struct
     match lookahead () with
     (* Reduce *)
     | DCODE _ | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
-      let x = Actions.a8_decl ~loc a0_symbols ()
-      and loc = loc_reduce ~loc 2 in
+      let loc = loc_reduce ~loc 2
+      and x = Actions.a8_decl ~loc a0_symbols () in
       _c0_decl ~loc x
     | _ -> fail [ "DCODE"; "DTOKEN"; "DTYPE"; "DSTART"; "DLEFT"; "DRIGHT"; "DNONASSOC"; "DSEP" ]
 
@@ -801,8 +801,8 @@ module States = struct
       state_3 ~loc x _c4_tid
     (* Reduce *)
     | DCODE _ | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
-      let x = Actions.a31_symbols ~loc ()
-      and loc = loc_reduce ~loc 0 in
+      let loc = loc_reduce ~loc 0
+      and x = Actions.a31_symbols ~loc () in
       _c1_symbols ~loc x
     | _ -> fail [ "ID"; "TID"; "DCODE"; "DTOKEN"; "DTYPE"; "DSTART"; "DLEFT"; "DRIGHT"; "DNONASSOC"; "DSEP" ]
 
@@ -816,8 +816,8 @@ module States = struct
     match lookahead () with
     (* Reduce *)
     | DCODE _ | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
-      let x = Actions.a9_decl ~loc a0_symbols ()
-      and loc = loc_reduce ~loc 2 in
+      let loc = loc_reduce ~loc 2
+      and x = Actions.a9_decl ~loc a0_symbols () in
       _c0_decl ~loc x
     | _ -> fail [ "DCODE"; "DTOKEN"; "DTYPE"; "DSTART"; "DLEFT"; "DRIGHT"; "DNONASSOC"; "DSEP" ]
 
@@ -857,8 +857,8 @@ module States = struct
       state_3 ~loc x _c4_tid
     (* Reduce *)
     | DCODE _ | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
-      let x = Actions.a31_symbols ~loc ()
-      and loc = loc_reduce ~loc 0 in
+      let loc = loc_reduce ~loc 0
+      and x = Actions.a31_symbols ~loc () in
       _c1_symbols ~loc x
     | _ -> fail [ "ID"; "TID"; "DCODE"; "DTOKEN"; "DTYPE"; "DSTART"; "DLEFT"; "DRIGHT"; "DNONASSOC"; "DSEP" ]
 
@@ -872,8 +872,8 @@ module States = struct
     match lookahead () with
     (* Reduce *)
     | DCODE _ | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
-      let x = Actions.a10_decl ~loc a0_symbols ()
-      and loc = loc_reduce ~loc 2 in
+      let loc = loc_reduce ~loc 2
+      and x = Actions.a10_decl ~loc a0_symbols () in
       _c0_decl ~loc x
     | _ -> fail [ "DCODE"; "DTOKEN"; "DTYPE"; "DSTART"; "DLEFT"; "DRIGHT"; "DNONASSOC"; "DSEP" ]
 
@@ -918,8 +918,8 @@ module States = struct
       state_12 ~loc x _c3_id
     (* Reduce *)
     | EOF ->
-      let x = Actions.a13_rules ~loc ()
-      and loc = loc_reduce ~loc 0 in
+      let loc = loc_reduce ~loc 0
+      and x = Actions.a13_rules ~loc () in
       _c1_rules ~loc x
     | _ -> fail [ "ID"; "EOF" ]
 
@@ -975,8 +975,8 @@ module States = struct
       state_12 ~loc x _c3_id
     (* Reduce *)
     | EOF ->
-      let x = Actions.a13_rules ~loc ()
-      and loc = loc_reduce ~loc 0 in
+      let loc = loc_reduce ~loc 0
+      and x = Actions.a13_rules ~loc () in
       _c1_rules ~loc x
     | _ -> fail [ "ID"; "EOF" ]
 
@@ -990,8 +990,8 @@ module States = struct
     match lookahead () with
     (* Reduce *)
     | EOF ->
-      let x = Actions.a12_rules ~loc a0_rules a1_rule ()
-      and loc = loc_reduce ~loc 2 in
+      let loc = loc_reduce ~loc 2
+      and x = Actions.a12_rules ~loc a0_rules a1_rule () in
       _c0_rules ~loc x
     | _ -> fail [ "EOF" ]
 
@@ -1053,8 +1053,8 @@ module States = struct
     match lookahead () with
     (* Reduce *)
     | CODE _ | DPREC ->
-      let x = Actions.a23_producers ~loc ()
-      and loc = loc_reduce ~loc 0 in
+      let loc = loc_reduce ~loc 0
+      and x = Actions.a23_producers ~loc () in
       _c4_producers ~loc x
     (* Shift *)
     | ID x ->
@@ -1073,8 +1073,8 @@ module States = struct
       state_38 ~loc _c2_productions
     (* Reduce *)
     | SEMI ->
-      let x = Actions.a18_productions ~loc ()
-      and loc = loc_reduce ~loc 0 in
+      let loc = loc_reduce ~loc 0
+      and x = Actions.a18_productions ~loc () in
       _c2_productions ~loc x
     | _ -> fail [ "ID"; "TID"; "CODE"; "DPREC"; "SEMI"; "BAR" ]
 
@@ -1121,8 +1121,8 @@ module States = struct
       state_3 ~loc x _c6_tid
     (* Reduce *)
     | CODE _ | DPREC ->
-      let x = Actions.a23_producers ~loc ()
-      and loc = loc_reduce ~loc 0 in
+      let loc = loc_reduce ~loc 0
+      and x = Actions.a23_producers ~loc () in
       _c2_producers ~loc x
     | _ -> fail [ "ID"; "TID"; "CODE"; "DPREC" ]
 
@@ -1146,8 +1146,8 @@ module States = struct
       state_38 ~loc _c1_productions
     (* Reduce *)
     | SEMI ->
-      let x = Actions.a18_productions ~loc ()
-      and loc = loc_reduce ~loc 0 in
+      let loc = loc_reduce ~loc 0
+      and x = Actions.a18_productions ~loc () in
       _c1_productions ~loc x
     | _ -> fail [ "SEMI"; "BAR" ]
 
@@ -1161,8 +1161,8 @@ module States = struct
     match lookahead () with
     (* Reduce *)
     | SEMI ->
-      let x = Actions.a17_productions ~loc a0_productions a1_production ()
-      and loc = loc_reduce ~loc 3 in
+      let loc = loc_reduce ~loc 3
+      and x = Actions.a17_productions ~loc a0_productions a1_production () in
       _c0_productions ~loc x
     | _ -> fail [ "SEMI" ]
 
@@ -1186,8 +1186,8 @@ module States = struct
       state_42 ~loc _c1_production_prec
     (* Reduce *)
     | CODE _ ->
-      let x = Actions.a21_production_prec ~loc ()
-      and loc = loc_reduce ~loc 0 in
+      let loc = loc_reduce ~loc 0
+      and x = Actions.a21_production_prec ~loc () in
       _c1_production_prec ~loc x
     | _ -> fail [ "CODE"; "DPREC" ]
 
@@ -1232,8 +1232,8 @@ module States = struct
     match lookahead () with
     (* Reduce *)
     | CODE _ ->
-      let x = Actions.a20_production_prec ~loc a0_symbol ()
-      and loc = loc_reduce ~loc 2 in
+      let loc = loc_reduce ~loc 2
+      and x = Actions.a20_production_prec ~loc a0_symbol () in
       _c0_production_prec ~loc x
     | _ -> fail [ "CODE" ]
 
@@ -1265,8 +1265,8 @@ module States = struct
     match lookahead () with
     (* Reduce *)
     | SEMI | BAR ->
-      let x = Actions.a37_code ~loc a0_CODE ()
-      and loc = loc_reduce ~loc 1 in
+      let loc = loc_reduce ~loc 1
+      and x = Actions.a37_code ~loc a0_CODE () in
       _c0_code ~loc x
     | _ -> fail [ "SEMI"; "BAR" ]
 
@@ -1280,8 +1280,8 @@ module States = struct
     match lookahead () with
     (* Reduce *)
     | SEMI | BAR ->
-      let x = Actions.a19_production ~loc a0_code a1_production_prec a2_producers ()
-      and loc = loc_reduce ~loc 3 in
+      let loc = loc_reduce ~loc 3
+      and x = Actions.a19_production ~loc a0_code a1_production_prec a2_producers () in
       _c0_production ~loc x
     | _ -> fail [ "SEMI"; "BAR" ]
 
@@ -1325,8 +1325,8 @@ module States = struct
       state_3 ~loc x _c5_tid
     (* Reduce *)
     | CODE _ | DPREC ->
-      let x = Actions.a23_producers ~loc ()
-      and loc = loc_reduce ~loc 0 in
+      let loc = loc_reduce ~loc 0
+      and x = Actions.a23_producers ~loc () in
       _c1_producers ~loc x
     | _ -> fail [ "ID"; "TID"; "CODE"; "DPREC" ]
 
@@ -1340,8 +1340,8 @@ module States = struct
     match lookahead () with
     (* Reduce *)
     | CODE _ | DPREC ->
-      let x = Actions.a22_producers ~loc a0_producers a1_producer ()
-      and loc = loc_reduce ~loc 2 in
+      let loc = loc_reduce ~loc 2
+      and x = Actions.a22_producers ~loc a0_producers a1_producer () in
       _c0_producers ~loc x
     | _ -> fail [ "CODE"; "DPREC" ]
 
@@ -1355,8 +1355,8 @@ module States = struct
     match lookahead () with
     (* Reduce *)
     | ID _ | TID _ | CODE _ | DPREC ->
-      let x = Actions.a25_producer ~loc a0_symbol ()
-      and loc = loc_reduce ~loc 1 in
+      let loc = loc_reduce ~loc 1
+      and x = Actions.a25_producer ~loc a0_symbol () in
       _c0_producer ~loc x
     | _ -> fail [ "ID"; "TID"; "CODE"; "DPREC" ]
 
@@ -1377,8 +1377,8 @@ module States = struct
       state_51 ~loc a0_id _c0_producer
     (* Reduce *)
     | ID _ | TID _ | CODE _ | DPREC ->
-      let x = Actions.a32_symbol ~loc a0_id ()
-      and loc = loc_reduce ~loc 1 in
+      let loc = loc_reduce ~loc 1
+      and x = Actions.a32_symbol ~loc a0_id () in
       _c1_symbol ~loc x
     | _ -> fail [ "ID"; "TID"; "CODE"; "DPREC"; "EQ" ]
 
@@ -1423,8 +1423,8 @@ module States = struct
     match lookahead () with
     (* Reduce *)
     | ID _ | TID _ | CODE _ | DPREC ->
-      let x = Actions.a24_producer ~loc a0_symbol a2_id ()
-      and loc = loc_reduce ~loc 3 in
+      let loc = loc_reduce ~loc 3
+      and x = Actions.a24_producer ~loc a0_symbol a2_id () in
       _c0_producer ~loc x
     | _ -> fail [ "ID"; "TID"; "CODE"; "DPREC" ]
 
@@ -1453,8 +1453,8 @@ module States = struct
     match lookahead () with
     (* Reduce *)
     | ID _ | EOF ->
-      let x = Actions.a14_rule ~loc a1_rule_prods a3_id ()
-      and loc = loc_reduce ~loc 4 in
+      let loc = loc_reduce ~loc 4
+      and x = Actions.a14_rule ~loc a1_rule_prods a3_id () in
       _c0_rule ~loc x
     | _ -> fail [ "ID"; "EOF" ]
 
@@ -1468,8 +1468,8 @@ module States = struct
     match lookahead () with
     (* Reduce *)
     | SEMI ->
-      let x = Actions.a16_rule_prods ~loc a0_productions ()
-      and loc = loc_reduce ~loc 1 in
+      let loc = loc_reduce ~loc 1
+      and x = Actions.a16_rule_prods ~loc a0_productions () in
       _c0_rule_prods ~loc x
     | _ -> fail [ "SEMI" ]
 
@@ -1493,8 +1493,8 @@ module States = struct
       state_38 ~loc _c1_productions
     (* Reduce *)
     | SEMI ->
-      let x = Actions.a18_productions ~loc ()
-      and loc = loc_reduce ~loc 0 in
+      let loc = loc_reduce ~loc 0
+      and x = Actions.a18_productions ~loc () in
       _c1_productions ~loc x
     | _ -> fail [ "SEMI"; "BAR" ]
 
@@ -1508,8 +1508,8 @@ module States = struct
     match lookahead () with
     (* Reduce *)
     | SEMI ->
-      let x = Actions.a15_rule_prods ~loc a0_productions a1_production ()
-      and loc = loc_reduce ~loc 2 in
+      let loc = loc_reduce ~loc 2
+      and x = Actions.a15_rule_prods ~loc a0_productions a1_production () in
       _c0_rule_prods ~loc x
     | _ -> fail [ "SEMI" ]
 
@@ -1580,8 +1580,8 @@ module States = struct
       state_28 ~loc _c2_decl
     (* Reduce *)
     | DSEP ->
-      let x = Actions.a2_decls ~loc ()
-      and loc = loc_reduce ~loc 0 in
+      let loc = loc_reduce ~loc 0
+      and x = Actions.a2_decls ~loc () in
       _c1_decls ~loc x
     | _ -> fail [ "DCODE"; "DTOKEN"; "DTYPE"; "DSTART"; "DLEFT"; "DRIGHT"; "DNONASSOC"; "DSEP" ]
 
@@ -1595,8 +1595,8 @@ module States = struct
     match lookahead () with
     (* Reduce *)
     | DSEP ->
-      let x = Actions.a1_decls ~loc a0_decls a1_decl ()
-      and loc = loc_reduce ~loc 2 in
+      let loc = loc_reduce ~loc 2
+      and x = Actions.a1_decls ~loc a0_decls a1_decl () in
       _c0_decls ~loc x
     | _ -> fail [ "DSEP" ]
   ;;

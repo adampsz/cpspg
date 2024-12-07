@@ -11,6 +11,7 @@ module type Settings = sig
 
   (* Codegen *)
   val locations : bool
+  val compat : bool
   val line_directives : bool
   val comments : bool
   val readable_ids : bool
