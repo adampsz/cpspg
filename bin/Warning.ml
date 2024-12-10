@@ -3,7 +3,7 @@ module IntSet = Set.Make (Int)
 let report ?loc tag msg =
   (match loc with
    | Some { Lexing.pos_fname = f; pos_lnum = l; pos_cnum = c; pos_bol = b } ->
-     Format.eprintf "\027[1mFile \"%s\", line %d, character %d\027[0m:\n" f l (c - b)
+     Format.eprintf "\027[1mFile \"%s\", line %d, character %d\027[0m:\n" f l (c - b + 1)
    | None -> ());
   Format.eprintf "%s: %t\n%!" tag msg
 ;;

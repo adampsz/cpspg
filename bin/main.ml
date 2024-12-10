@@ -113,7 +113,15 @@ let main () =
         and exp = Cpspg.Parser.expected_tokens () in
         let exp = String.concat ", " exp in
         Settings.report_err ~loc "Unexpected token `%s', expected %s" lex exp;
-        { decls = []; rules = [] }
+        Cpspg.Ast.dummy
+      | Cpspg.Lexer.UnexpectedInput (Some c) ->
+        let loc = lexbuf.lex_start_p, lexbuf.lex_curr_p in
+        Settings.report_err ~loc "Unexpected character `%c'" c;
+        Cpspg.Ast.dummy
+      | Cpspg.Lexer.UnexpectedInput None ->
+        let loc = lexbuf.lex_start_p, lexbuf.lex_curr_p in
+        Settings.report_err ~loc "Unexpected end of input";
+        Cpspg.Ast.dummy
     ;;
   end
   in

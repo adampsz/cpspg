@@ -4,6 +4,8 @@ open Ast
 open Parser
 open Lexing
 
+exception UnexpectedInput of (char option)
+
 let add_c = Buffer.add_char
 let add_s = Buffer.add_string
 
@@ -90,7 +92,8 @@ rule main = parse
   | '<'  { TYPE (wrapped " " " " (tag 0) lexbuf |> fst) }
   | "{"  { CODE (wrapped " " " " (code 0 []) lexbuf) }
 
-  | eof { EOF }
+  | eof    { EOF }
+  | _ as c { raise (UnexpectedInput (Some c)) }
 
 and tag depth eat = parse
   | '[' | '(' { eat lexbuf; tag (depth + 1) eat lexbuf }
@@ -100,7 +103,7 @@ and tag depth eat = parse
   | '>'  { if depth > 0 then (eat lexbuf; tag depth eat lexbuf) }
 
   | newline { new_line lexbuf; eat lexbuf; tag depth eat lexbuf }
-  | eof     { failwith "unterminated type tag" }
+  | eof     { raise (UnexpectedInput None) }
   | _       { eat lexbuf; tag depth eat lexbuf }
 
 and code depth kw eat = parse
@@ -129,7 +132,7 @@ and code depth kw eat = parse
   | "(*" { eat lexbuf; comment 0 eat lexbuf; eat lexbuf; code depth kw eat lexbuf }
 
   | newline { new_line lexbuf; eat lexbuf; code depth kw eat lexbuf }
-  | eof     { failwith "unterminated code" }
+  | eof     { raise (UnexpectedInput None) }
   | _       { eat lexbuf; code depth kw eat lexbuf }
 
 and dcode depth eat = parse
@@ -141,7 +144,7 @@ and dcode depth eat = parse
   | "(*" { eat lexbuf; comment 0 eat lexbuf; eat lexbuf; dcode depth eat lexbuf }
 
   | newline { new_line lexbuf; eat lexbuf; dcode depth eat lexbuf }
-  | eof     { failwith "unterminated code" }
+  | eof     { raise (UnexpectedInput None) }
   | _       { eat lexbuf; dcode depth eat lexbuf }
 
 and string eat = parse
@@ -149,7 +152,7 @@ and string eat = parse
   | "\\\""  { eat lexbuf; string eat lexbuf }
   | '"'     { }
   | newline { new_line lexbuf; eat lexbuf; string eat lexbuf }
-  | eof     { failwith "unterminated string" }
+  | eof     { raise (UnexpectedInput None) }
   | _       { eat lexbuf; string eat lexbuf }
 
 and comment depth eat = parse
@@ -159,15 +162,15 @@ and comment depth eat = parse
   | '"' { eat lexbuf; string eat lexbuf; eat lexbuf; comment depth eat lexbuf }
 
   | newline  { new_line lexbuf; eat lexbuf; comment depth eat lexbuf }
-  | eof      { failwith "unterminated comment" }
+  | eof      { raise (UnexpectedInput None) }
   | _        { eat lexbuf; comment depth eat lexbuf }
 
 and ccomment = parse
   | "*/" { }
-  | eof  { failwith "unterminated comment" }
+  | eof  { raise (UnexpectedInput None) }
   | _    { ccomment lexbuf }
 
 and ccomment_line = parse
   | "\n" { }
-  | eof  { failwith "unterminated comment" }
+  | eof  { raise (UnexpectedInput None) }
   | _    { ccomment_line lexbuf }

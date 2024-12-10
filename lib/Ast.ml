@@ -51,3 +51,5 @@ type t =
   { decls : decl list
   ; rules : rule list
   }
+
+let dummy = { decls = []; rules = [] }
