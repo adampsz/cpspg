@@ -104,7 +104,17 @@ let main () =
   let module Ast = struct
     let lexbuf = Lexing.from_channel input
     let _ = Lexing.set_filename lexbuf input_name
-    let ast = Cpspg.Parser.grammar Cpspg.Lexer.main lexbuf
+
+    let ast =
+      try Cpspg.Parser.grammar Cpspg.Lexer.main lexbuf with
+      | Parsing.Parse_error ->
+        let loc = lexbuf.lex_start_p, lexbuf.lex_curr_p
+        and lex = Lexing.lexeme lexbuf
+        and exp = Cpspg.Parser.expected_tokens () in
+        let exp = String.concat ", " exp in
+        Settings.report_err ~loc "Unexpected token `%s', expected %s" lex exp;
+        { decls = []; rules = [] }
+    ;;
   end
   in
   (* Second pass: create context-free grammar *)
