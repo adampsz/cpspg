@@ -72,7 +72,6 @@ let main () =
     | None | Some "-" -> stdout
     | Some x -> open_out x
   in
-  let conflicts = ref [] in
   (* Settings *)
   let module Settings = struct
     let kind = !grammar_kind
@@ -85,9 +84,20 @@ let main () =
     let readable_ids = !codegen_readable_ids
 
     (* Reporting *)
-    let report_err ~loc = Format.kdprintf (Warning.report_err ~loc:(fst loc))
+    let conflicts = ref []
+    let has_error = ref false
+
+    let report_err ~loc =
+      has_error := true;
+      Format.kdprintf (Warning.report_err ~loc:(fst loc))
+    ;;
+
     let report_warn ~loc = Format.kdprintf (Warning.report_warn ~loc:(fst loc))
-    let report_conflict id sym actions = conflicts := (id, sym, actions) :: !conflicts
+
+    let report_conflict id sym actions =
+      has_error := true;
+      conflicts := (id, sym, actions) :: !conflicts
+    ;;
   end
   in
   (* First pass: parse grammar definition *)
@@ -102,7 +112,7 @@ let main () =
   (* Third pass: create LR automaton *)
   let module Automaton = Cpspg.AutomatonGen.Run (Settings) (Grammar) in
   let module Conflicts = Warning.Conflict (Grammar) (Automaton) in
-  List.iter (fun (i, s, a) -> Conflicts.report i s a) !conflicts;
+  List.iter (fun (i, s, a) -> Conflicts.report i s a) !Settings.conflicts;
   (* Fourth pass: initialize code generation *)
   let module Code =
     (val match !output_format with
@@ -112,10 +122,8 @@ let main () =
       : Cpspg.Types.Code)
   in
   (* Write results *)
-  Code.write (Format.formatter_of_out_channel output)
+  if not !Settings.has_error then Code.write (Format.formatter_of_out_channel output);
+  Bool.to_int !Settings.has_error
 ;;
 
-let _ =
-  main ();
-  exit 0
-;;
+let _ = main () |> exit
