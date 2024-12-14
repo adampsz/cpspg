@@ -11,7 +11,7 @@
         pkgs = nixpkgs.legacyPackages.${system};
         on = opam-nix.lib.${system};
         scope =
-          on.buildOpamProject { } package ./. { ocaml-base-compiler = "*"; };
+          on.buildOpamProject { } package ./. { ocaml-system = "*"; };
         overlay = final: prev:
           {
             # Your overrides go here
