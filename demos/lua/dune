@@ -1,5 +1,4 @@
 (executable
- (public_name lua)
  (name main)
  (libraries unix)
  (ocamlopt_flags
