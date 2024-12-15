@@ -5,6 +5,9 @@
 (generate_opam_files true)
 
 (authors "Adam Szeruda")
+(maintainers "Adam Szeruda")
+(homepage "https://github.com/adampsz/cpspg")
+(bug_reports "https://github.com/adampsz/cpspg/issues")
 (license MIT)
 
 (package
