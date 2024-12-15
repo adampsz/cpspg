@@ -1,15 +1,3 @@
-let lexbuf = Lexing.from_string ""
-
-let lex tokens =
-  let tokens = ref tokens in
-  let next _ =
-    let hd = List.hd !tokens in
-    tokens := List.tl !tokens;
-    hd
-  in
-  next
-;;
-
 let expr =
   let open CalcParser in
   let rec pp f = function
@@ -27,10 +15,7 @@ let expr =
 
 let suite parse =
   let open CalcParser in
-  let check name tok res =
-    Alcotest.test_case name `Quick (fun () ->
-      Alcotest.(check expr) name (parse (lex tok) lexbuf) res)
-  in
+  let check = Common.check expr parse in
   [ check "basic integer" [ INT 1; EOF ] (Int 1)
   ; check "basic addition" [ INT 1; PLUS; INT 2; EOF ] (Add (Int 1, Int 2))
   ; check "basic multiplication" [ INT 1; STAR; INT 2; EOF ] (Mul (Int 1, Int 2))
