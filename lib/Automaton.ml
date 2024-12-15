@@ -61,7 +61,7 @@ type item =
   }
 
 (** Group of LR(0)/LR(1) items with common nonterminal and prefix.
-    INVARIANT: Items are sorted bu suffix lenght in increasing order. *)
+    INVARIANT: Items are sorted by suffix lenght in increasing order. *)
 type group =
   { g_symbol : Nonterminal.t (** Nonterminal. *)
   ; g_prefix : symbol list (** Prefix common to all items in this group. *)
@@ -71,10 +71,9 @@ type group =
   }
 
 type semantic_action =
-  { sa_symbol : Nonterminal.t
-  ; sa_index : int
-  ; sa_args : string option list
+  { sa_args : string option list
   ; sa_code : Ast.code node
+  ; sa_rule : string node
   }
 
 type action =
@@ -85,12 +84,12 @@ type action =
     INVARIANT: groups are sorted by prefix length, in descending order. *)
 type state =
   { s_kernel : group list
-  (** Item groups, sorted descending by prefix length, and then alphabetically. *)
+    (** Item groups, sorted descending by prefix length, and then alphabetically. *)
   ; s_closure : group list
-  (** Additional item groups added by CLOSURE, not present in kernel *)
+    (** Additional item groups added by CLOSURE, not present in kernel *)
   ; s_goto : int SymbolMap.t (** Successors *)
   ; s_action : (TermSet.t * action) list
-  (** Map from lookahead terminal symbol to
+    (** Map from lookahead terminal symbol to
       the corresponding parsing decision. *)
   }
 

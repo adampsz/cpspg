@@ -227,7 +227,7 @@ struct
 
   let write_semantic_action_id f action idx =
     if S.readable_ids
-    then Format.fprintf f "a%d_%s" idx (nterm_name action.sa_symbol)
+    then Format.fprintf f "a%d_%s" idx action.sa_rule.data
     else Format.fprintf f "a%d" idx
   ;;
 
@@ -240,9 +240,12 @@ struct
     List.iteri iter groups
   ;;
 
-  let write_arg_ids f symbols =
+  let write_arg_ids f ?(all = false) symbols =
     let iter i s =
-      if symbol_has_value s then Format.fprintf f " %t" (fun f -> write_arg_id f s i)
+      match symbol_has_value s, all with
+      | true, _ -> Format.fprintf f " %t" (fun f -> write_arg_id f s i)
+      | _, true -> Format.fprintf f " ()"
+      | _, _ -> ()
     in
     List.iteri iter symbols
   ;;
@@ -286,9 +289,10 @@ struct
   ;;
 
   let write_semantic_action_call f group = function
+    (* Starting symbol has a special action with id -1 *)
     | { i_action = -1; _ } ->
       assert (List.length group.g_prefix = 1);
-      write_arg_ids f group.g_prefix
+      write_arg_ids f ~all:true group.g_prefix
     | { i_action; _ } ->
       let action = IntMap.find i_action A.automaton.a_actions in
       Format.fprintf
@@ -296,7 +300,7 @@ struct
         " Actions.%t%s%t ()"
         (fun f -> write_semantic_action_id f action i_action)
         (if S.locations then " ~loc" else "")
-        (fun f -> write_arg_ids f group.g_prefix)
+        (fun f -> write_arg_ids f ~all:true group.g_prefix)
   ;;
 
   let write_action_shift f state sym =
@@ -410,15 +414,14 @@ struct
   ;;
 
   let write_semantic_action f id action =
-    let item = List.nth (G.group action.sa_symbol).g_items action.sa_index in
-    let iter i s = function
-      | _ when symbol_has_value s = false -> ()
+    let len = List.length action.sa_args in
+    let iter i = function
       | Some a -> Format.fprintf f " %s" a
-      | None -> Format.fprintf f " _arg%d" (List.length action.sa_args - i)
+      | None -> Format.fprintf f " _arg%d" (len - i)
     in
     write_semantic_action_id f action id;
     if S.locations then Format.fprintf f " ~loc:_loc";
-    iteri2 iter (List.rev item.i_suffix) (List.rev action.sa_args);
+    List.iteri iter (List.rev action.sa_args);
     Format.fprintf f " () = %t" (fun f -> write_semantic_action_code f action)
   ;;
 

@@ -11,8 +11,9 @@ let mknode ~loc data = { loc; data }
 %token<string> ID TID TYPE
 %token<code> CODE
 %token<string> DCODE
-%token DTOKEN DTYPE DSTART DLEFT DRIGHT DNONASSOC DPREC DSEP
-%token COLON SEMI BAR EQ
+%token DTOKEN DTYPE DSTART DLEFT DRIGHT DNONASSOC DSEP
+%token DPREC
+%token BAR COLON COMMA EQ SEMI LPAREN RPAREN
 %token EOF
 
 %%
@@ -44,7 +45,19 @@ rules:
 ;
 
 rule:
-    | id=id COLON prods=rule_prods SEMI { { id; prods } }
+    | id=id params=rule_parameters COLON
+      prods=rule_prods SEMI { { id; params; prods } }
+;
+
+rule_parameters:
+    |                                          { [] }
+    | LPAREN params=rule_parameter_list RPAREN { params }
+;
+
+rule_parameter_list:
+    |                                       { [] }
+    | x=symbol                              { [x] }
+    | x=symbol COMMA xs=rule_parameter_list { x :: xs }
 ;
 
 rule_prods:
@@ -72,8 +85,19 @@ producers:
 ;
 
 producer:
-    | id=id EQ actual=symbol { { id = Some id; actual } }
-    | actual=symbol          { { id = None; actual } }
+    | id=id EQ actual=actual { { id = Some id; actual } }
+    | actual=actual          { { id = None; actual } }
+;
+
+actual:
+    | symbol=symbol                                { { symbol; args = [] } }
+    | symbol=symbol LPAREN args=actual_args RPAREN { { symbol; args } }
+;
+
+actual_args:
+    |                               { [] }
+    | x=actual                      { [Arg x] }
+    | x=actual COMMA xs=actual_args { Arg x :: xs }
 ;
 
 ids:

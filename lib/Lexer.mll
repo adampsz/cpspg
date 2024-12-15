@@ -71,9 +71,10 @@ rule main = parse
   | "%right"    { DRIGHT }
   | "%nonassoc" { DNONASSOC }
   | "%binary"   { DNONASSOC }
-  | "%prec"     { DPREC }
   | "%%"        { DSEP }
   | "%{"        { DCODE (wrapped "  " "  " (dcode 0) lexbuf |> fst) }
+
+  | "%prec"     { DPREC }
 
   | "%\\" { DSEP }
   | "%<"  { DLEFT }
@@ -81,10 +82,13 @@ rule main = parse
   | "%0"  { DTOKEN }
   | "%2"  { DNONASSOC }
 
-  | ":" { COLON }
-  | ";" { SEMI }
   | "|" { BAR }
+  | ":" { COLON }
+  | "," { COMMA }
   | "=" { EQ }
+  | ";" { SEMI }
+  | "(" { LPAREN }
+  | ")" { RPAREN }
 
   | lowercase identchar* as i { ID i }
   | uppercase identchar* as i { TID i }

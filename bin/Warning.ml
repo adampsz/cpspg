@@ -5,7 +5,7 @@ let report ?loc tag msg =
    | Some { Lexing.pos_fname = f; pos_lnum = l; pos_cnum = c; pos_bol = b } ->
      Format.eprintf "\027[1mFile \"%s\", line %d, character %d\027[0m:\n" f l (c - b + 1)
    | None -> ());
-  Format.eprintf "%s: %t\n%!" tag msg
+  Format.eprintf "%s: %t\n\n%!" tag msg
 ;;
 
 let report_err ?loc msg = report ?loc "\027[1;31mError\027[0m" msg

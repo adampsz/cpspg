@@ -31,9 +31,16 @@ type decl =
   | DeclNonassoc of symbol list
   | DeclCode of string node
 
+type actual =
+  { symbol : symbol
+  ; args : arg list
+  }
+
+and arg = Arg of actual
+
 type producer =
   { id : string node option
-  ; actual : symbol
+  ; actual : actual
   }
 
 type production =
@@ -44,6 +51,7 @@ type production =
 
 type rule =
   { id : string node
+  ; params : symbol list
   ; prods : production list
   }
 
