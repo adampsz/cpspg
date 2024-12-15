@@ -1,0 +1,8 @@
+(test
+  (name Calc)
+  (libraries alcotest))
+
+(rule
+ (target CalcParser.ml)
+ (deps Calc.mly)
+ (action (run cpspg -o %{target} %{deps})))

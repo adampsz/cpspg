@@ -10,4 +10,4 @@
 (package
  (name cpspg)
  (synopsis "Continuation-passing style parser generator")
- (depends ocaml dune))
+ (depends ocaml dune (alcotest :with-test)))
