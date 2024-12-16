@@ -31,7 +31,7 @@ This project is managed using `dune`. To build it, run:
 dune build
 ```
 
-Note that `lib/Parser.ml` is bootstrapped from `lib/Parser.mly`. When code generation changes, it can be [promoted](https://dune.readthedocs.io/en/stable/concepts.html#promotion) to new version:
+Note that `lib/Parser.ml` is bootstrapped from `lib/Parser.mly`. When code generation changes, it can be [promoted](https://dune.readthedocs.io/en/stable/concepts/promotion.html) to new version:
 
 ```sh
 dune build @bootstrap
