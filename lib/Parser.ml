@@ -6,10 +6,11 @@ open Ast
 
 let mknode ~loc data = { loc; data }
 
-let (plus, star, qmark) =
-    let loc = (Lexing.dummy_pos, Lexing.dummy_pos) in
-    let sym name = NTerm (mknode ~loc name) in
-    (sym "nonempty_list", sym "list", sym "option")
+let plus, star, qmark =
+  let loc = Lexing.dummy_pos, Lexing.dummy_pos in
+  let sym name = NTerm (mknode ~loc name) in
+  sym "nonempty_list", sym "list", sym "option"
+;;
 
 type token =
   | TYPE of (string)
@@ -64,7 +65,7 @@ module Actions = struct
   let a5_option ~loc:_loc x () = Some x
   let a6_tid ~loc:_loc x () = mknode ~loc:(_kw_loc ~loc:_loc 1) x
   let a7_list ~loc:_loc () = []
-  let a8_list ~loc:_loc xs x () = x::xs
+  let a8_list ~loc:_loc xs x () = x :: xs
   let a9_decl ~loc:_loc xs tp _arg1 () = DeclStart (tp, xs)
   let a10_id ~loc:_loc x () = mknode ~loc:(_kw_loc ~loc:_loc 1) x
   let a11_decl ~loc:_loc xs tp _arg1 () = DeclType (tp, xs)
@@ -77,20 +78,20 @@ module Actions = struct
   let a18_rule_parameters ~loc:_loc () = []
   let a19_rule_parameters ~loc:_loc _arg3 params _arg1 () = params
   let a20_rule_parameter_list ~loc:_loc () = []
-  let a21_rule_parameter_list ~loc:_loc x () = [x]
+  let a21_rule_parameter_list ~loc:_loc x () = [ x ]
   let a22_rule_parameter_list ~loc:_loc xs _arg2 x () = x :: xs
   let a23_rule_prods ~loc:_loc xs () = xs
   let a24_productions ~loc:_loc () = []
   let a25_productions ~loc:_loc xs x _arg1 () = x :: xs
   let a26_production ~loc:_loc action prec prod () = { prod; prec; action }
   let a27_producer ~loc:_loc actual _arg2 id () = { id = Some id; actual }
-  let a28_actual ~loc:_loc _arg2 actual () = { symbol = plus;  args = [Arg actual] }
-  let a29_actual ~loc:_loc _arg2 actual () = { symbol = star;  args = [Arg actual] }
-  let a30_actual ~loc:_loc _arg2 actual () = { symbol = qmark; args = [Arg actual] }
+  let a28_actual ~loc:_loc _arg2 actual () = { symbol = plus; args = [ Arg actual ] }
+  let a29_actual ~loc:_loc _arg2 actual () = { symbol = star; args = [ Arg actual ] }
+  let a30_actual ~loc:_loc _arg2 actual () = { symbol = qmark; args = [ Arg actual ] }
   let a31_actual ~loc:_loc symbol () = { symbol; args = [] }
   let a32_actual ~loc:_loc _arg4 args _arg2 symbol () = { symbol; args }
   let a33_actual_args ~loc:_loc () = []
-  let a34_actual_args ~loc:_loc x () = [Arg x]
+  let a34_actual_args ~loc:_loc x () = [ Arg x ]
   let a35_actual_args ~loc:_loc xs _arg2 x () = Arg x :: xs
   let a36_producer ~loc:_loc actual () = { id = None; actual }
   let a37_prec ~loc:_loc x _arg1 () = x
