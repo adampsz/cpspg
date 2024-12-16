@@ -30,10 +30,10 @@ end
 
 (* Computation of FIRST sets *)
 module FIRST (G : sig
-  include Types.Grammar
+    include Types.Grammar
 
-  val nullable : Automaton.symbol -> bool
-end) : sig
+    val nullable : Automaton.symbol -> bool
+  end) : sig
   val first : Automaton.symbol -> TermSet.t
 end = struct
   open Automaton
@@ -72,11 +72,11 @@ end
 
 (** Computation of FOLLOW sets *)
 module FOLLOW (G : sig
-  include Types.Grammar
+    include Types.Grammar
 
-  val first : Automaton.symbol -> TermSet.t
-  val nullable : Automaton.symbol -> bool
-end) : sig
+    val first : Automaton.symbol -> TermSet.t
+    val nullable : Automaton.symbol -> bool
+  end) : sig
   val follow : Automaton.symbol -> TermSet.t
 end = struct
   open Automaton
