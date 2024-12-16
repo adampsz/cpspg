@@ -4,6 +4,11 @@ open Ast
 
 let mknode ~loc data = { loc; data }
 
+let (plus, star, qmark) =
+    let loc = (Lexing.dummy_pos, Lexing.dummy_pos) in
+    let sym name = NTerm (mknode ~loc name) in
+    (sym "nonempty_list", sym "list", sym "option")
+
 %}
 
 %start<Grammar.t> grammar
@@ -13,23 +18,23 @@ let mknode ~loc data = { loc; data }
 %token<string> DCODE
 %token DTOKEN DTYPE DSTART DLEFT DRIGHT DNONASSOC DSEP
 %token DPREC
-%token BAR COLON COMMA EQ SEMI LPAREN RPAREN
+%token BAR COLON COMMA EQ PLUS QMARK SEMI STAR LPAREN RPAREN
 %token EOF
 
 %%
 
 grammar:
-    | decls=list(decl) DSEP rules=list(rule) EOF { { decls; rules } }
+    | decls=decl* DSEP rules=rule* EOF { { decls; rules } }
 ;
 
 decl:
-    | code=DCODE                           { DeclCode (mknode ~loc:$loc code) }
-    | DTOKEN tp=option(tp) xs=list(tid)    { DeclToken (tp, xs) }
-    | DSTART tp=option(tp) xs=list(id)     { DeclStart (tp, xs) }
-    | DTYPE  tp=tp         xs=list(symbol) { DeclType (tp, xs) }
-    | DLEFT     xs=list(symbol)            { DeclLeft xs }
-    | DRIGHT    xs=list(symbol)            { DeclRight xs }
-    | DNONASSOC xs=list(symbol)            { DeclNonassoc xs }
+    | code=DCODE               { DeclCode (mknode ~loc:$loc code) }
+    | DTOKEN tp=tp? xs=tid*    { DeclToken (tp, xs) }
+    | DSTART tp=tp? xs=id*     { DeclStart (tp, xs) }
+    | DTYPE  tp=tp  xs=symbol* { DeclType (tp, xs) }
+    | DLEFT         xs=symbol* { DeclLeft xs }
+    | DRIGHT        xs=symbol* { DeclRight xs }
+    | DNONASSOC     xs=symbol* { DeclNonassoc xs }
 ;
 
 rule:
@@ -59,8 +64,8 @@ productions:
 ;
 
 production:
-    | prod=list(producer)
-      prec=option(prec)
+    | prod=producer*
+      prec=prec?
       action=code
     { { prod; prec; action } }
 ;
@@ -71,6 +76,9 @@ producer:
 ;
 
 actual:
+    | actual=actual PLUS                           { { symbol = plus;  args = [Arg actual] } }
+    | actual=actual STAR                           { { symbol = star;  args = [Arg actual] } }
+    | actual=actual QMARK                          { { symbol = qmark; args = [Arg actual] } }
     | symbol=symbol                                { { symbol; args = [] } }
     | symbol=symbol LPAREN args=actual_args RPAREN { { symbol; args } }
 ;

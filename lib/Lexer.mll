@@ -86,7 +86,10 @@ rule main = parse
   | ":" { COLON }
   | "," { COMMA }
   | "=" { EQ }
+  | "+" { PLUS }
+  | "?" { QMARK }
   | ";" { SEMI }
+  | "*" { STAR }
   | "(" { LPAREN }
   | ")" { RPAREN }
 
