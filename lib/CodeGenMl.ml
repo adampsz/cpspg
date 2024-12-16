@@ -422,7 +422,7 @@ struct
     write_semantic_action_id f action id;
     if S.locations then Format.fprintf f " ~loc:_loc";
     List.iteri iter (List.rev action.sa_args);
-    Format.fprintf f " () = %t" (fun f -> write_semantic_action_code f action)
+    Format.fprintf f " () = (%t)" (fun f -> write_semantic_action_code f action)
   ;;
 
   let write_state_comment f state =
