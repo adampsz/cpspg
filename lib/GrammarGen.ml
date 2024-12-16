@@ -6,6 +6,12 @@ module NTermMap = Map.Make (Automaton.Nonterminal)
 module Run (S : Types.Settings) (A : Types.Ast) : Types.Grammar = struct
   open Automaton
 
+  module Std = struct
+    let lexbuf = Lexing.from_string Standard.contents
+    let _ = Lexing.set_filename lexbuf "<standard.mly>"
+    let ast = Parser.grammar Lexer.main lexbuf
+  end
+
   type value =
     | VDummy
     | VSymbol of symbol
@@ -71,9 +77,13 @@ module Run (S : Types.Settings) (A : Types.Ast) : Types.Grammar = struct
       let name = rule.Ast.id in
       if Hashtbl.mem rules name.data
       then S.report_warn ~loc:name.loc "duplicate rule %s" name.data
-      else Hashtbl.replace rules name.data rule
+      else Hashtbl.add rules name.data rule
+    and iter_std rule =
+      let name = rule.Ast.id in
+      if not (Hashtbl.mem rules name.data) then Hashtbl.add rules name.data rule
     in
     List.iter iter_rule A.ast.rules;
+    List.iter iter_std Std.ast.rules;
     rules
   ;;
 

@@ -19,29 +19,17 @@ let mknode ~loc data = { loc; data }
 %%
 
 grammar:
-    | decls=decls DSEP rules=rules EOF { { decls; rules } }
-;
-
-decls:
-    | (* empty *)      { [] }
-    | x=decl xs=decls  { x :: xs }
+    | decls=list(decl) DSEP rules=list(rule) EOF { { decls; rules } }
 ;
 
 decl:
-    | code=DCODE             { DeclCode (mknode ~loc:$loc code) }
-    | DTOKEN tp=tp xs=tids   { DeclToken (Some tp, xs) }
-    | DTOKEN xs=tids         { DeclToken (None, xs) }
-    | DSTART tp=tp xs=ids    { DeclStart (Some tp, xs) }
-    | DSTART xs=ids          { DeclStart (None, xs) }
-    | DTYPE tp=tp xs=symbols { DeclType (tp, xs) }
-    | DLEFT xs=symbols       { DeclLeft xs }
-    | DRIGHT xs=symbols      { DeclRight xs }
-    | DNONASSOC xs=symbols   { DeclNonassoc xs }
-;
-
-rules:
-    | (* empty *)      { [] }
-    | x=rule xs=rules  { x :: xs }
+    | code=DCODE                           { DeclCode (mknode ~loc:$loc code) }
+    | DTOKEN tp=option(tp) xs=list(tid)    { DeclToken (tp, xs) }
+    | DSTART tp=option(tp) xs=list(id)     { DeclStart (tp, xs) }
+    | DTYPE  tp=tp         xs=list(symbol) { DeclType (tp, xs) }
+    | DLEFT     xs=list(symbol)            { DeclLeft xs }
+    | DRIGHT    xs=list(symbol)            { DeclRight xs }
+    | DNONASSOC xs=list(symbol)            { DeclNonassoc xs }
 ;
 
 rule:
@@ -71,17 +59,10 @@ productions:
 ;
 
 production:
-    | prod=producers prec=production_prec action=code { { prod; prec; action } }
-;
-
-production_prec:
-    | (* empty *)    { None }
-    | DPREC x=symbol { Some x }
-;
-
-producers:
-    | (* empty *)             { [] }
-    | x=producer xs=producers { x :: xs }
+    | prod=list(producer)
+      prec=option(prec)
+      action=code
+    { { prod; prec; action } }
 ;
 
 producer:
@@ -100,25 +81,12 @@ actual_args:
     | x=actual COMMA xs=actual_args { Arg x :: xs }
 ;
 
-ids:
-    | (* empty *) { [] }
-    | x=id xs=ids { x :: xs }
-;
-
-tids:
-    | (* empty *)   { [] }
-    | x=tid xs=tids { x :: xs }
-;
-
-symbols:
-    | (* empty *)         { [] }
-    | x=symbol xs=symbols { x :: xs }
-;
-
 symbol:
     | name=id  { NTerm name }
     | name=tid { Term name }
 ;
+
+prec: DPREC x=symbol { x };
 
 id:    x=ID   { mknode ~loc:$loc x };
 tid:   x=TID  { mknode ~loc:$loc x };

@@ -13,6 +13,15 @@
    (run cpspg --readable -o %{target} %{deps}))))
 
 (rule
+  (deps Standard.mly)
+  (target Standard.ml)
+  (action (with-stdout-to %{target}
+    (progn
+      (echo "let contents = {standard|")
+      (cat %{deps})
+      (echo "|standard}")))))
+
+(rule
  (alias bootstrap)
  (action
   (diff Parser.ml Parser.cpspg.ml)))
