@@ -3,7 +3,9 @@
 
 %%
 
-main: a=flip SEP b=flip c=flip d=flip { [a; b; c; d] };
+main:
+  | a=flip SEP b=flip c=flip d=flip EOF { [a; b; c; d] }
+;
 
 %inline flip:
   | A { true }
