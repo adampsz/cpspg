@@ -2,11 +2,9 @@
 
 open Ast
 
-let mknode ~loc data = { loc; data }
-
 let plus, star, qmark =
   let loc = Lexing.dummy_pos, Lexing.dummy_pos in
-  let sym name = NTerm (mknode ~loc name) in
+  let sym data = NTerm { loc; data } in
   sym "nonempty_list", sym "list", sym "option"
 ;;
 
@@ -29,7 +27,7 @@ grammar:
 ;
 
 decl:
-  | code=DCODE               { DeclCode (mknode ~loc:$loc code) }
+  | data=DCODE               { DeclCode { loc=$loc; data } }
   | DTOKEN tp=tp? xs=tid*    { DeclToken (tp, xs) }
   | DSTART tp=tp? xs=id*     { DeclStart (tp, xs) }
   | DTYPE  tp=tp  xs=symbol* { DeclType (tp, xs) }
@@ -40,54 +38,50 @@ decl:
 
 rule:
   | inline=boption(DINLINE)
-    id=id params=rule_parameters COLON
-    prods=rule_prods SEMI { { id; inline; params; prods } }
+    id=id params=loption(parameters) COLON
+    option(BAR) prods=separated_nonempty_list(BAR, production)
+    SEMI
+      { { id; inline; params; prods } }
 ;
 
-rule_parameters:
-  |                                          { [] }
-  | LPAREN params=rule_parameter_list RPAREN { params }
+parameters:
+  | LPAREN params=separated_list(COMMA, parameter) RPAREN { params }
 ;
 
-rule_parameter_list:
-  |                                       { [] }
-  | x=symbol                              { [ x ] }
-  | x=symbol COMMA xs=rule_parameter_list { x :: xs }
-;
-
-rule_prods:
-  | xs=productions              { xs }
-  | x=production xs=productions { x :: xs }
-;
-
-productions:
-  | (* empty *)                     { [] }
-  | BAR x=production xs=productions { x :: xs }
+%inline
+parameter:
+  | x=symbol { x }
 ;
 
 production:
   | prod=producer*
-    prec=prec?
+    prec=preceded(DPREC, symbol)?
     action=code { { prod; prec; action } }
 ;
 
 producer:
-  | id=id EQ actual=actual { { id = Some id; actual } }
-  | actual=actual          { { id = None; actual } }
+  | id=ioption(terminated(id, EQ))
+    actual=actual { { id; actual } }
 ;
 
 actual:
-  | actual=actual PLUS                           { { symbol = plus; args = [ Arg actual ] } }
-  | actual=actual STAR                           { { symbol = star; args = [ Arg actual ] } }
-  | actual=actual QMARK                          { { symbol = qmark; args = [ Arg actual ] } }
-  | symbol=symbol                                { { symbol; args = [] } }
-  | symbol=symbol LPAREN args=actual_args RPAREN { { symbol; args } }
+  | actual=actual symbol=shorthand   { { symbol; args = [ Arg actual ] } }
+  | symbol=symbol args=loption(args) { { symbol; args } }
 ;
 
-actual_args:
-  |                               { [] }
-  | x=actual                      { [ Arg x ] }
-  | x=actual COMMA xs=actual_args { Arg x :: xs }
+shorthand:
+  | PLUS  { plus }
+  | STAR  { star }
+  | QMARK { qmark }
+;
+
+args:
+  | LPAREN args=separated_nonempty_list(COMMA, arg) RPAREN { args }
+;
+
+%inline
+arg:
+  | x=actual { Arg x }
 ;
 
 symbol:
@@ -95,9 +89,9 @@ symbol:
   | name=tid { Term name }
 ;
 
-prec: DPREC x=symbol { x };
+%inline id:   node(ID)   { $1 };
+%inline tid:  node(TID)  { $1 };
+%inline tp:   node(TYPE) { $1 };
+%inline code: node(CODE) { $1 };
 
-id:    x=ID   { mknode ~loc:$loc x };
-tid:   x=TID  { mknode ~loc:$loc x };
-tp:    x=TYPE { mknode ~loc:$loc x };
-code:  x=CODE { mknode ~loc:$loc x };
+%inline node(X): data=X { { loc = $loc; data } };
