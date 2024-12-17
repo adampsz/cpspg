@@ -12,7 +12,7 @@
 
 %token<int> INT
 %token PLUS MINUS SLASH STAR PERCENT CARET LPAREN RPAREN EOF
-%start<int> main_base main_prec
+%start<int> main_base main_prec main_inline
 
 %left PLUS MINUS
 %left SLASH STAR PERCENT
@@ -50,15 +50,34 @@ base:
 main_prec: x=exprp EOF { x };
 
 exprp:
-    | l=exprp PLUS    r=exprp { Add (l, r) }
-    | l=exprp MINUS   r=exprp { Sub (l, r) }
-    | l=exprp STAR    r=exprp { Mul (l, r) }
-    | l=exprp SLASH   r=exprp { Div (l, r) }
-    | l=exprp PERCENT r=exprp { Mod (l, r) }
-    | l=exprp CARET   r=exprp { Pow (l, r) }
+  | l=exprp PLUS    r=exprp { Add (l, r) }
+  | l=exprp MINUS   r=exprp { Sub (l, r) }
+  | l=exprp STAR    r=exprp { Mul (l, r) }
+  | l=exprp SLASH   r=exprp { Div (l, r) }
+  | l=exprp PERCENT r=exprp { Mod (l, r) }
+  | l=exprp CARET   r=exprp { Pow (l, r) }
 
-    | MINUS x=exprp %prec UMINUS { Neg x }
+  | MINUS x=exprp %prec UMINUS { Neg x }
 
-    | LPAREN x=exprp RPAREN  { x }
-    | x=INT                  { Int x }
+  | LPAREN x=exprp RPAREN  { x }
+  | x=INT                  { Int x }
+;
+
+main_inline: x=expri EOF { x };
+
+%inline
+binop:
+  | PLUS    { fun l r -> Add (l, r) }
+  | MINUS   { fun l r -> Sub (l, r) }
+  | STAR    { fun l r -> Mul (l, r) }
+  | SLASH   { fun l r -> Div (l, r) }
+  | PERCENT { fun l r -> Mod (l, r) }
+  | CARET   { fun l r -> Pow (l, r) }
+;
+
+expri:
+  | l=exprp op=binop r=exprp   { op l r }
+  | MINUS x=exprp %prec UMINUS { Neg x }
+  | LPAREN x=exprp RPAREN      { x }
+  | x=INT                      { Int x }
 ;

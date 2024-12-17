@@ -67,5 +67,8 @@ let suite parse =
 let _ =
   Alcotest.run
     "Calc"
-    [ "base", suite CalcParser.main_base; "prec", suite CalcParser.main_prec ]
+    [ "base", suite CalcParser.main_base
+    ; "prec", suite CalcParser.main_prec
+    ; "inline", suite CalcParser.main_inline
+    ]
 ;;

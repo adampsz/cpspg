@@ -53,10 +53,21 @@ type symbol = Symbol.t =
 
 type prec = int * int
 
+(** Contains a information related to the call of a semantic action.
+   - [ac_id] contains the semantic action id, while
+   - [ac_args] contains list of arguments passed to the action,
+     [none] when argument comes from symmbol, [some] when it is
+     a value of inlined rule
+  *)
+type semantic_action_call =
+  { ac_id : int
+  ; ac_args : semantic_action_call option list
+  }
+
 (** Suffix of LR(0)/LR(1) *)
 type item =
   { i_suffix : symbol list
-  ; i_action : int (** Production/semantic action id *)
+  ; i_action : semantic_action_call option
   ; i_prec : prec option
   }
 
@@ -166,7 +177,7 @@ let shift_state symbol state =
 ;;
 
 let item_of_starting_symbol symbol =
-  { i_suffix = [ NTerm symbol ]; i_action = -1; i_prec = None }
+  { i_suffix = [ NTerm symbol ]; i_action = None; i_prec = None }
 ;;
 
 let group_of_starting_symbol symbol =

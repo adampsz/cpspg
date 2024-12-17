@@ -3,19 +3,64 @@ module StringMap = Map.Make (String)
 module TermMap = Map.Make (Automaton.Terminal)
 module NTermMap = Map.Make (Automaton.Nonterminal)
 
+type value =
+  | VDummy (* error value *)
+  | VSymbol of Automaton.symbol (* ordinary symbol *)
+  | VInline of Automaton.item list (* %inline symbol *)
+  | VRule of Ast.rule (* higher order rule. *)
+
+(** Standard library, copied from [Standard.mly] file into [Standard.ml] by dune *)
+module Std = struct
+  let lexbuf = Lexing.from_string Standard.contents
+  let _ = Lexing.set_filename lexbuf "<standard.mly>"
+  let ast = Parser.grammar Lexer.main lexbuf
+end
+
+(** [equal] and [hash] functions that compare rules by their ids only *)
+module Rule = struct
+  type t = Ast.rule
+
+  let equal r1 r2 = r1.Ast.id.data == r2.Ast.id.data
+  let hash r = Hashtbl.hash r.Ast.id.data
+end
+
+(** [equal] and [hash] function that compare [value]s using [Rule] module above *)
+module Value = struct
+  type t = value
+
+  let equal v1 v2 =
+    match v1, v2 with
+    | VDummy, VDummy -> true
+    | VSymbol s1, VSymbol s2 -> s1 = s2
+    | VInline i1, VInline i2 -> i1 = i2
+    | VRule r1, VRule r2 -> Rule.equal r1 r2
+    | _, _ -> false
+  ;;
+
+  let hash = function
+    | VDummy -> Hashtbl.hash 0
+    | VSymbol s -> Hashtbl.hash (1, s)
+    | VInline i -> Hashtbl.hash (2, i)
+    | VRule r -> Hashtbl.hash (3, Rule.hash r)
+  ;;
+end
+
+(** Specialized hashmap that is used to store rule instances, indexed by rule and its arguments.
+    This map uses [Rule] and [Value] modules from above, which simplifies grammar generation while
+    comparing rules only by their ids *)
+module InstanceMap = Hashtbl.Make (struct
+    type t = Ast.rule * value list
+
+    let equal (r1, v1) (r2, v2) = Rule.equal r1 r2 && List.equal Value.equal v1 v2
+    let hash (r, vs) = Hashtbl.hash (Rule.hash r, List.map Value.hash vs)
+  end)
+
 module Run (S : Types.Settings) (A : Types.Ast) : Types.Grammar = struct
   open Automaton
 
-  module Std = struct
-    let lexbuf = Lexing.from_string Standard.contents
-    let _ = Lexing.set_filename lexbuf "<standard.mly>"
-    let ast = Parser.grammar Lexer.main lexbuf
-  end
-
-  type value =
-    | VDummy
-    | VSymbol of symbol
-    | VRule of string
+  let nterm_id = InstanceMap.create 128
+  let nterm_info = Hashtbl.create 128
+  let actions = Hashtbl.create 128
 
   let sym_name = function
     | Ast.Term t -> t
@@ -71,6 +116,7 @@ module Run (S : Types.Settings) (A : Types.Ast) : Types.Grammar = struct
     term
   ;;
 
+  (** All known rules, both from given grammar and the standard library *)
   let rules =
     let rules = Hashtbl.create 64 in
     let iter_rule rule =
@@ -86,10 +132,6 @@ module Run (S : Types.Settings) (A : Types.Ast) : Types.Grammar = struct
     List.iter iter_std Std.ast.rules;
     rules
   ;;
-
-  let nterm_id : (string * value list, Nonterminal.t) Hashtbl.t = Hashtbl.create 128
-  let nterm_info : (Nonterminal.t, nterm_info * group) Hashtbl.t = Hashtbl.create 128
-  let actions : (string * int, int * semantic_action) Hashtbl.t = Hashtbl.create 128
 
   let init_env loc params given =
     let name s = (sym_name s).data in
@@ -117,71 +159,96 @@ module Run (S : Types.Settings) (A : Types.Ast) : Types.Grammar = struct
   ;;
 
   let tr_action rule idx prod =
-    let producer_id = function
-      | { Ast.id = Some id; Ast.actual = _ } -> Some id.data
-      | { Ast.id = None; Ast.actual = _ } -> None
+    let get_args = function
+      | { Ast.id = None; Ast.actual = _; _ } -> None
+      | { Ast.id = Some id; _ } -> Some id.data
     in
+    let args = List.map get_args prod.Ast.prod in
     match Hashtbl.find_opt actions (rule.Ast.id.data, idx) with
     | Some (id, _) -> id
     | None ->
-      let args = List.map producer_id prod.Ast.prod in
       let action = { sa_args = args; sa_code = prod.Ast.action; sa_rule = rule.Ast.id }
       and id = Hashtbl.length actions in
       Hashtbl.add actions (rule.Ast.id.data, idx) (id, action);
       id
   ;;
 
-  let rec tr_actual (env : value StringMap.t) actual : symbol =
+  let tr_values values =
+    let append_one x xxs = List.map (fun xs -> x :: xs) xxs
+    and append_some yys xxs =
+      List.map (fun ys -> List.map (List.rev_append ys) xxs) yys |> List.flatten
+    in
+    let f (sym, arg) = function
+      | VDummy ->
+        let s = Term Terminal.dummy in
+        append_one s sym, append_one None arg
+      | VRule _ ->
+        let s = Term Terminal.dummy in
+        append_one s sym, append_one None arg
+      | VSymbol s -> append_one s sym, append_one None arg
+      | VInline items ->
+        let s = List.map (fun i -> i.i_suffix) items
+        and a = List.map (fun i -> [ i.i_action ]) items in
+        append_some s sym, append_some a arg
+    in
+    let sym, arg = List.fold_left f ([ [] ], [ [] ]) values in
+    List.map List.rev sym, List.map List.rev arg
+  ;;
+
+  let rec tr_actual env actual : value =
     let sym = actual.Ast.symbol in
     let name = sym_name sym in
+    let get_nterm id args =
+      match Hashtbl.find_opt rules id.data with
+      | None ->
+        S.report_err ~loc:id.loc "unknown nonterminal symbol %s" id.data;
+        VDummy
+      | Some rule when args = [] && rule.params <> [] -> VRule rule
+      | Some rule -> tr_args env actual.args |> instantiate rule
+    in
     match actual.symbol, StringMap.find_opt name.data env with
-    | _, Some VDummy -> Term Terminal.dummy
-    | _, Some (VSymbol id) -> id
-    | _, Some (VRule rule) ->
-      let rule = Hashtbl.find rules rule in
-      NTerm (tr_args env actual.args |> instantiate rule)
+    | _, Some (VRule rule) when actual.args <> [] ->
+      instantiate rule (tr_args env actual.args)
+    | _, Some value ->
+      if actual.args <> []
+      then S.report_err ~loc:name.loc "this value does not accept arguments";
+      value
     | Ast.Term t, None ->
       if actual.args <> []
-      then S.report_err ~loc:name.loc "terminal symbols do not accept arguemtns";
-      Term (tr_term t)
-    | Ast.NTerm id, None ->
-      (match Hashtbl.find_opt rules id.data with
-       | None ->
-         S.report_err ~loc:id.loc "unknown nonterminal symbol %s" id.data;
-         Term Terminal.dummy
-       | Some rule -> NTerm (tr_args env actual.args |> instantiate rule))
+      then S.report_err ~loc:name.loc "terminal symbols do not accept arguments";
+      VSymbol (Term (tr_term t))
+    | Ast.NTerm id, None -> get_nterm id actual.args
 
   and tr_production env rule idx prod =
+    let values = List.map (fun p -> tr_actual env p.Ast.actual) prod.Ast.prod in
     let get_prec p = Hashtbl.find_opt prec (sym_name p).data in
-    { i_suffix = List.map (fun p -> tr_actual env p.Ast.actual) prod.Ast.prod
-    ; i_action = tr_action rule idx prod
-    ; i_prec = Option.bind prod.Ast.prec get_prec
-    }
+    let get_group suffix args =
+      { i_suffix = suffix
+      ; i_action = Some { ac_id = tr_action rule idx prod; ac_args = args }
+      ; i_prec = Option.bind prod.Ast.prec get_prec
+      }
+    in
+    let sym, arg = tr_values values in
+    List.map2 get_group sym arg
 
   and tr_args env args =
     let tr_arg = function
-      | Ast.Arg actual ->
-        let sym = actual.Ast.symbol in
-        let name = sym_name sym in
-        (match actual.symbol, StringMap.find_opt name.data env with
-         | _, Some arg -> arg
-         | Ast.NTerm id, None when actual.args = [] ->
-           (match Hashtbl.find_opt rules id.data with
-            | Some rule when rule.params <> [] -> VRule id.data
-            | _ -> VSymbol (tr_actual env actual))
-         | _, _ -> VSymbol (tr_actual env actual))
+      | Ast.Arg actual -> tr_actual env actual
     in
     List.map tr_arg args
 
-  and instantiate (rule : Ast.rule) (args : value list) : Nonterminal.t =
+  and instantiate rule args =
     let compare_item_len a b = -List.compare_lengths a.i_suffix b.i_suffix in
-    match Hashtbl.find_opt nterm_id (rule.Ast.id.data, args) with
-    | Some id -> id
+    match InstanceMap.find_opt nterm_id (rule, args) with
+    | Some id ->
+      if rule.inline
+      then VInline (Hashtbl.find nterm_info id |> snd).g_items
+      else VSymbol (NTerm id)
     | None ->
-      let id = Hashtbl.length nterm_id |> Nonterminal.of_int in
-      Hashtbl.add nterm_id (rule.Ast.id.data, args) id;
+      let id = InstanceMap.length nterm_id |> Nonterminal.of_int in
+      InstanceMap.add nterm_id (rule, args) id;
       let env = init_env rule.Ast.id.loc rule.Ast.params args in
-      let items = List.mapi (tr_production env rule) rule.prods in
+      let items = List.mapi (tr_production env rule) rule.prods |> List.flatten in
       let info = { ni_name = rule.id; ni_starting = false }
       and group =
         { g_symbol = id
@@ -192,22 +259,29 @@ module Run (S : Types.Settings) (A : Types.Ast) : Types.Grammar = struct
         }
       in
       Hashtbl.add nterm_info id (info, group);
-      id
+      if rule.inline then VInline group.g_items else VSymbol (NTerm id)
   ;;
 
   (* Find all starting points and fill [nterm_id] and [nterm_info] tables *)
   let _ =
+    let start name rule =
+      match instantiate rule [] with
+      | VDummy | VSymbol (Term _) ->
+        S.report_err ~loc:name.loc "starting rule %s is invalid" name.data
+      | VRule _ ->
+        S.report_err ~loc:name.loc "starting rule %s cannot accept parameters" name.data
+      | VInline _ ->
+        S.report_err ~loc:name.loc "starting rule %s cannot be inline" name.data
+      | VSymbol (NTerm id) ->
+        let info, group = Hashtbl.find nterm_info id in
+        if info.ni_starting
+        then S.report_warn ~loc:name.loc "duplicate start declaration of %s" name.data
+        else Hashtbl.replace nterm_info id ({ info with ni_starting = true }, group)
+    in
     let iter_start name =
       match Hashtbl.find_opt rules name.data with
       | None -> S.report_err ~loc:name.loc "unknown starting symbol %s" name.data
-      | Some rule when rule.params <> [] ->
-        S.report_err ~loc:name.loc "starting rule %s cannot accept parameters" name.data
-      | Some rule ->
-        let id = instantiate rule [] in
-        let info, group = Hashtbl.find nterm_info id in
-        if info.ni_starting
-        then S.report_warn ~loc:name.loc "rule %s is already marked as starting" name.data
-        else Hashtbl.replace nterm_info id ({ info with ni_starting = true }, group)
+      | Some rule -> start name rule
     in
     let iter_decl = function
       | Ast.DeclStart (_, ids) -> List.iter iter_start ids
@@ -218,7 +292,7 @@ module Run (S : Types.Settings) (A : Types.Ast) : Types.Grammar = struct
 
   let symbols =
     let term = Hashtbl.to_seq_values term |> Seq.map (fun (t, _) -> Term t)
-    and nterm = Hashtbl.to_seq_values nterm_id |> Seq.map (fun n -> NTerm n) in
+    and nterm = InstanceMap.to_seq_values nterm_id |> Seq.map (fun n -> NTerm n) in
     Seq.append term nterm |> List.of_seq |> List.sort compare
   ;;
 

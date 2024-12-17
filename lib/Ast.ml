@@ -51,6 +51,7 @@ type production =
 
 type rule =
   { id : string node
+  ; inline : bool
   ; params : symbol list
   ; prods : production list
   }

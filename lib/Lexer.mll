@@ -74,6 +74,7 @@ rule main = parse
   | "%%"        { DSEP }
   | "%{"        { DCODE (wrapped "  " "  " (dcode 0) lexbuf |> fst) }
 
+  | "%inline"   { DINLINE }
   | "%prec"     { DPREC }
 
   | "%\\" { DSEP }

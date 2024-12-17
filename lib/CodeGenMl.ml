@@ -240,14 +240,35 @@ struct
     List.iteri iter groups
   ;;
 
-  let write_arg_ids f ?(all = false) symbols =
+  let write_arg_ids f symbols =
     let iter i s =
-      match symbol_has_value s, all with
-      | true, _ -> Format.fprintf f " %t" (fun f -> write_arg_id f s i)
-      | _, true -> Format.fprintf f " ()"
-      | _, _ -> ()
+      if symbol_has_value s then Format.fprintf f " %t" (fun f -> write_arg_id f s i)
     in
     List.iteri iter symbols
+  ;;
+
+  let write_action_args f call symbols =
+    let rec aux c (sym, i) =
+      match sym, c with
+      | s :: sym, None ->
+        if symbol_has_value s
+        then Format.fprintf f " %t" (fun f -> write_arg_id f s i)
+        else Format.fprintf f " ()";
+        sym, i + 1
+      | sym, Some inline ->
+        let action = IntMap.find inline.ac_id A.automaton.a_actions in
+        Format.fprintf
+          f
+          " (Actions.%t%s"
+          (fun f -> write_semantic_action_id f action inline.ac_id)
+          (if S.locations then " ~loc" else "");
+        let sym, i = List.fold_right aux inline.ac_args (sym, i) in
+        Format.fprintf f " ())";
+        sym, i
+      | [], _ -> assert false
+    in
+    let sym, _ = List.fold_right aux call (symbols, 0) in
+    assert (sym = [])
   ;;
 
   let write_term_names f terms =
@@ -290,17 +311,17 @@ struct
 
   let write_semantic_action_call f group = function
     (* Starting symbol has a special action with id -1 *)
-    | { i_action = -1; _ } ->
+    | { i_action = None; _ } ->
       assert (List.length group.g_prefix = 1);
-      write_arg_ids f ~all:true group.g_prefix
-    | { i_action; _ } ->
-      let action = IntMap.find i_action A.automaton.a_actions in
+      write_arg_ids f group.g_prefix
+    | { i_action = Some a; _ } ->
+      let action = IntMap.find a.ac_id A.automaton.a_actions in
       Format.fprintf
         f
         " Actions.%t%s%t ()"
-        (fun f -> write_semantic_action_id f action i_action)
+        (fun f -> write_semantic_action_id f action a.ac_id)
         (if S.locations then " ~loc" else "")
-        (fun f -> write_arg_ids f ~all:true group.g_prefix)
+        (fun f -> write_action_args f a.ac_args group.g_prefix)
   ;;
 
   let write_action_shift f state sym =

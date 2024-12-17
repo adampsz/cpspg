@@ -2,18 +2,28 @@
  (name Calc)
  (libraries alcotest))
 
-(test
- (name Param)
- (libraries alcotest))
-
 (rule
  (target CalcParser.ml)
  (deps Calc.mly)
  (action
   (run cpspg -o %{target} %{deps})))
 
+(test
+ (name Param)
+ (libraries alcotest))
+
 (rule
  (target ParamParser.ml)
  (deps Param.mly)
+ (action
+  (run cpspg -o %{target} %{deps})))
+
+(test
+ (name Inline)
+ (libraries alcotest))
+
+(rule
+ (target InlineParser.ml)
+ (deps Inline.mly)
  (action
   (run cpspg -o %{target} %{deps})))

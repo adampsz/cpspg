@@ -32,6 +32,7 @@ type token =
   | DPREC
   | DNONASSOC
   | DLEFT
+  | DINLINE
   | DCODE of (string)
   | COMMA
   | COLON
@@ -57,46 +58,48 @@ module Actions = struct
   let _kw_symbolstartofs ~loc:_ _ = failwith "unimplemented: $symbolstartofs"
   let _kw_loc ~loc n = _kw_startpos ~loc n, _kw_endpos ~loc n
   let _kw_sloc ~loc:_ _ = failwith "unimplemented: $sloc"
-  let a0_grammar ~loc:_loc _arg4 rules _arg2 decls () = ({ decls; rules })
-  let a1_decl ~loc:_loc code () = (DeclCode (mknode ~loc:(_kw_loc ~loc:_loc 1) code))
-  let a2_decl ~loc:_loc xs tp _arg1 () = (DeclToken (tp, xs))
-  let a3_tp ~loc:_loc x () = (mknode ~loc:(_kw_loc ~loc:_loc 1) x)
-  let a4_option ~loc:_loc () = (None)
-  let a5_option ~loc:_loc x () = (Some x)
-  let a6_tid ~loc:_loc x () = (mknode ~loc:(_kw_loc ~loc:_loc 1) x)
-  let a7_list ~loc:_loc () = ([])
-  let a8_list ~loc:_loc xs x () = (x :: xs)
+  let a0_decl ~loc:_loc code () = (DeclCode (mknode ~loc:(_kw_loc ~loc:_loc 1) code))
+  let a1_tp ~loc:_loc x () = (mknode ~loc:(_kw_loc ~loc:_loc 1) x)
+  let a2_option ~loc:_loc () = (None)
+  let a3_option ~loc:_loc x () = (Some x)
+  let a4_tid ~loc:_loc x () = (mknode ~loc:(_kw_loc ~loc:_loc 1) x)
+  let a5_list ~loc:_loc () = ([])
+  let a6_list ~loc:_loc xs x () = (x :: xs)
+  let a7_decl ~loc:_loc xs tp _arg1 () = (DeclToken (tp, xs))
+  let a8_id ~loc:_loc x () = (mknode ~loc:(_kw_loc ~loc:_loc 1) x)
   let a9_decl ~loc:_loc xs tp _arg1 () = (DeclStart (tp, xs))
-  let a10_id ~loc:_loc x () = (mknode ~loc:(_kw_loc ~loc:_loc 1) x)
-  let a11_decl ~loc:_loc xs tp _arg1 () = (DeclType (tp, xs))
-  let a12_symbol ~loc:_loc name () = (NTerm name)
-  let a13_symbol ~loc:_loc name () = (Term name)
-  let a14_decl ~loc:_loc xs _arg1 () = (DeclLeft xs)
-  let a15_decl ~loc:_loc xs _arg1 () = (DeclRight xs)
-  let a16_decl ~loc:_loc xs _arg1 () = (DeclNonassoc xs)
-  let a17_rule ~loc:_loc _arg5 prods _arg3 params id () = ({ id; params; prods })
+  let a10_symbol ~loc:_loc name () = (NTerm name)
+  let a11_symbol ~loc:_loc name () = (Term name)
+  let a12_decl ~loc:_loc xs tp _arg1 () = (DeclType (tp, xs))
+  let a13_decl ~loc:_loc xs _arg1 () = (DeclLeft xs)
+  let a14_decl ~loc:_loc xs _arg1 () = (DeclRight xs)
+  let a15_decl ~loc:_loc xs _arg1 () = (DeclNonassoc xs)
+  let a16_boption ~loc:_loc () = (false)
+  let a17_boption ~loc:_loc _arg1 () = (true)
   let a18_rule_parameters ~loc:_loc () = ([])
-  let a19_rule_parameters ~loc:_loc _arg3 params _arg1 () = (params)
-  let a20_rule_parameter_list ~loc:_loc () = ([])
-  let a21_rule_parameter_list ~loc:_loc x () = ([ x ])
-  let a22_rule_parameter_list ~loc:_loc xs _arg2 x () = (x :: xs)
-  let a23_rule_prods ~loc:_loc xs () = (xs)
-  let a24_productions ~loc:_loc () = ([])
-  let a25_productions ~loc:_loc xs x _arg1 () = (x :: xs)
-  let a26_production ~loc:_loc action prec prod () = ({ prod; prec; action })
-  let a27_producer ~loc:_loc actual _arg2 id () = ({ id = Some id; actual })
-  let a28_actual ~loc:_loc _arg2 actual () = ({ symbol = plus; args = [ Arg actual ] })
-  let a29_actual ~loc:_loc _arg2 actual () = ({ symbol = star; args = [ Arg actual ] })
-  let a30_actual ~loc:_loc _arg2 actual () = ({ symbol = qmark; args = [ Arg actual ] })
-  let a31_actual ~loc:_loc symbol () = ({ symbol; args = [] })
-  let a32_actual ~loc:_loc _arg4 args _arg2 symbol () = ({ symbol; args })
-  let a33_actual_args ~loc:_loc () = ([])
-  let a34_actual_args ~loc:_loc x () = ([ Arg x ])
-  let a35_actual_args ~loc:_loc xs _arg2 x () = (Arg x :: xs)
-  let a36_producer ~loc:_loc actual () = ({ id = None; actual })
-  let a37_prec ~loc:_loc x _arg1 () = (x)
-  let a38_code ~loc:_loc x () = (mknode ~loc:(_kw_loc ~loc:_loc 1) x)
+  let a19_rule_parameter_list ~loc:_loc () = ([])
+  let a20_rule_parameter_list ~loc:_loc x () = ([ x ])
+  let a21_rule_parameter_list ~loc:_loc xs _arg2 x () = (x :: xs)
+  let a22_rule_parameters ~loc:_loc _arg3 params _arg1 () = (params)
+  let a23_productions ~loc:_loc () = ([])
+  let a24_actual ~loc:_loc _arg2 actual () = ({ symbol = plus; args = [ Arg actual ] })
+  let a25_actual ~loc:_loc _arg2 actual () = ({ symbol = star; args = [ Arg actual ] })
+  let a26_actual ~loc:_loc _arg2 actual () = ({ symbol = qmark; args = [ Arg actual ] })
+  let a27_actual ~loc:_loc symbol () = ({ symbol; args = [] })
+  let a28_actual_args ~loc:_loc () = ([])
+  let a29_actual_args ~loc:_loc x () = ([ Arg x ])
+  let a30_actual_args ~loc:_loc xs _arg2 x () = (Arg x :: xs)
+  let a31_actual ~loc:_loc _arg4 args _arg2 symbol () = ({ symbol; args })
+  let a32_producer ~loc:_loc actual _arg2 id () = ({ id = Some id; actual })
+  let a33_producer ~loc:_loc actual () = ({ id = None; actual })
+  let a34_prec ~loc:_loc x _arg1 () = (x)
+  let a35_code ~loc:_loc x () = (mknode ~loc:(_kw_loc ~loc:_loc 1) x)
+  let a36_production ~loc:_loc action prec prod () = ({ prod; prec; action })
+  let a37_productions ~loc:_loc xs x _arg1 () = (x :: xs)
+  let a38_rule_prods ~loc:_loc xs () = (xs)
   let a39_rule_prods ~loc:_loc xs x () = (x :: xs)
+  let a40_rule ~loc:_loc _arg6 prods _arg4 params id inline () = ({ id; inline; params; prods })
+  let a41_grammar ~loc:_loc _arg4 rules _arg2 decls () = ({ decls; rules })
 end
 
 module States = struct
@@ -183,7 +186,7 @@ module States = struct
     (* Reduce *)
     | DSEP ->
       let loc = loc_reduce ~loc 0
-      and x = Actions.a7_list ~loc () in
+      and x = Actions.a5_list ~loc () in
       _c2_list ~loc x
     (* Shift *)
     | DCODE x ->
@@ -233,7 +236,7 @@ module States = struct
     (* Reduce *)
     | DCODE _ | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
       let loc = loc_reduce ~loc 1
-      and x = Actions.a1_decl ~loc a0_DCODE () in
+      and x = Actions.a0_decl ~loc a0_DCODE () in
       _c0_decl ~loc x
     | _ -> fail [ "DCODE"; "DTOKEN"; "DTYPE"; "DSTART"; "DLEFT"; "DRIGHT"; "DNONASSOC"; "DSEP" ]
 
@@ -256,7 +259,7 @@ module States = struct
     (* Reduce *)
     | TID _ | DCODE _ | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
       let loc = loc_reduce ~loc 0
-      and x = Actions.a4_option ~loc () in
+      and x = Actions.a2_option ~loc () in
       _c2_option ~loc x
     (* Shift *)
     | TYPE x ->
@@ -276,7 +279,7 @@ module States = struct
     (* Reduce *)
     | ID _ | TID _ | DCODE _ | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
       let loc = loc_reduce ~loc 1
-      and x = Actions.a3_tp ~loc a0_TYPE () in
+      and x = Actions.a1_tp ~loc a0_TYPE () in
       _c0_tp ~loc x
     | _ -> fail [ "ID"; "TID"; "DCODE"; "DTOKEN"; "DTYPE"; "DSTART"; "DLEFT"; "DRIGHT"; "DNONASSOC"; "DSEP" ]
 
@@ -291,7 +294,7 @@ module States = struct
     (* Reduce *)
     | ID _ | TID _ | DCODE _ | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
       let loc = loc_reduce ~loc 1
-      and x = Actions.a5_option ~loc a0_tp () in
+      and x = Actions.a3_option ~loc a0_tp () in
       _c0_option ~loc x
     | _ -> fail [ "ID"; "TID"; "DCODE"; "DTOKEN"; "DTYPE"; "DSTART"; "DLEFT"; "DRIGHT"; "DNONASSOC"; "DSEP" ]
 
@@ -319,7 +322,7 @@ module States = struct
     (* Reduce *)
     | DCODE _ | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
       let loc = loc_reduce ~loc 0
-      and x = Actions.a7_list ~loc () in
+      and x = Actions.a5_list ~loc () in
       _c2_list ~loc x
     | _ -> fail [ "TID"; "DCODE"; "DTOKEN"; "DTYPE"; "DSTART"; "DLEFT"; "DRIGHT"; "DNONASSOC"; "DSEP" ]
 
@@ -334,7 +337,7 @@ module States = struct
     (* Reduce *)
     | ID _ | TID _ | CODE _ | DCODE _ | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP | DPREC | COMMA | PLUS | QMARK | STAR | LPAREN | RPAREN ->
       let loc = loc_reduce ~loc 1
-      and x = Actions.a6_tid ~loc a0_TID () in
+      and x = Actions.a4_tid ~loc a0_TID () in
       _c0_tid ~loc x
     | _ -> fail [ "ID"; "TID"; "CODE"; "DCODE"; "DTOKEN"; "DTYPE"; "DSTART"; "DLEFT"; "DRIGHT"; "DNONASSOC"; "DSEP"; "DPREC"; "COMMA"; "PLUS"; "QMARK"; "STAR"; "LPAREN"; "RPAREN" ]
 
@@ -362,7 +365,7 @@ module States = struct
     (* Reduce *)
     | DCODE _ | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
       let loc = loc_reduce ~loc 0
-      and x = Actions.a7_list ~loc () in
+      and x = Actions.a5_list ~loc () in
       _c2_list ~loc x
     | _ -> fail [ "TID"; "DCODE"; "DTOKEN"; "DTYPE"; "DSTART"; "DLEFT"; "DRIGHT"; "DNONASSOC"; "DSEP" ]
 
@@ -377,7 +380,7 @@ module States = struct
     (* Reduce *)
     | DCODE _ | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
       let loc = loc_reduce ~loc 2
-      and x = Actions.a8_list ~loc a0_list a1_tid () in
+      and x = Actions.a6_list ~loc a0_list a1_tid () in
       _c0_list ~loc x
     | _ -> fail [ "DCODE"; "DTOKEN"; "DTYPE"; "DSTART"; "DLEFT"; "DRIGHT"; "DNONASSOC"; "DSEP" ]
 
@@ -392,7 +395,7 @@ module States = struct
     (* Reduce *)
     | DCODE _ | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
       let loc = loc_reduce ~loc 3
-      and x = Actions.a2_decl ~loc a0_list a1_option () () in
+      and x = Actions.a7_decl ~loc a0_list a1_option () () in
       _c0_decl ~loc x
     | _ -> fail [ "DCODE"; "DTOKEN"; "DTYPE"; "DSTART"; "DLEFT"; "DRIGHT"; "DNONASSOC"; "DSEP" ]
 
@@ -441,7 +444,7 @@ module States = struct
     (* Reduce *)
     | DCODE _ | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
       let loc = loc_reduce ~loc 0
-      and x = Actions.a7_list ~loc () in
+      and x = Actions.a5_list ~loc () in
       _c4_list ~loc x
     (* Shift *)
     | ID x ->
@@ -466,7 +469,7 @@ module States = struct
     (* Reduce *)
     | ID _ | TID _ | CODE _ | DCODE _ | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP | DPREC | COLON | COMMA | EQ | PLUS | QMARK | STAR | LPAREN | RPAREN ->
       let loc = loc_reduce ~loc 1
-      and x = Actions.a10_id ~loc a0_ID () in
+      and x = Actions.a8_id ~loc a0_ID () in
       _c0_id ~loc x
     | _ -> fail [ "ID"; "TID"; "CODE"; "DCODE"; "DTOKEN"; "DTYPE"; "DSTART"; "DLEFT"; "DRIGHT"; "DNONASSOC"; "DSEP"; "DPREC"; "COLON"; "COMMA"; "EQ"; "PLUS"; "QMARK"; "STAR"; "LPAREN"; "RPAREN" ]
 
@@ -481,7 +484,7 @@ module States = struct
     (* Reduce *)
     | ID _ | TID _ | CODE _ | DCODE _ | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP | DPREC | COMMA | PLUS | QMARK | STAR | LPAREN | RPAREN ->
       let loc = loc_reduce ~loc 1
-      and x = Actions.a13_symbol ~loc a0_tid () in
+      and x = Actions.a11_symbol ~loc a0_tid () in
       _c0_symbol ~loc x
     | _ -> fail [ "ID"; "TID"; "CODE"; "DCODE"; "DTOKEN"; "DTYPE"; "DSTART"; "DLEFT"; "DRIGHT"; "DNONASSOC"; "DSEP"; "DPREC"; "COMMA"; "PLUS"; "QMARK"; "STAR"; "LPAREN"; "RPAREN" ]
 
@@ -496,7 +499,7 @@ module States = struct
     (* Reduce *)
     | ID _ | TID _ | CODE _ | DCODE _ | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP | DPREC | COMMA | PLUS | QMARK | STAR | LPAREN | RPAREN ->
       let loc = loc_reduce ~loc 1
-      and x = Actions.a12_symbol ~loc a0_id () in
+      and x = Actions.a10_symbol ~loc a0_id () in
       _c0_symbol ~loc x
     | _ -> fail [ "ID"; "TID"; "CODE"; "DCODE"; "DTOKEN"; "DTYPE"; "DSTART"; "DLEFT"; "DRIGHT"; "DNONASSOC"; "DSEP"; "DPREC"; "COMMA"; "PLUS"; "QMARK"; "STAR"; "LPAREN"; "RPAREN" ]
 
@@ -527,7 +530,7 @@ module States = struct
     (* Reduce *)
     | DCODE _ | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
       let loc = loc_reduce ~loc 0
-      and x = Actions.a7_list ~loc () in
+      and x = Actions.a5_list ~loc () in
       _c4_list ~loc x
     (* Shift *)
     | ID x ->
@@ -552,7 +555,7 @@ module States = struct
     (* Reduce *)
     | DCODE _ | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
       let loc = loc_reduce ~loc 2
-      and x = Actions.a8_list ~loc a0_list a1_symbol () in
+      and x = Actions.a6_list ~loc a0_list a1_symbol () in
       _c0_list ~loc x
     | _ -> fail [ "DCODE"; "DTOKEN"; "DTYPE"; "DSTART"; "DLEFT"; "DRIGHT"; "DNONASSOC"; "DSEP" ]
 
@@ -567,7 +570,7 @@ module States = struct
     (* Reduce *)
     | DCODE _ | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
       let loc = loc_reduce ~loc 3
-      and x = Actions.a11_decl ~loc a0_list a1_tp () () in
+      and x = Actions.a12_decl ~loc a0_list a1_tp () () in
       _c0_decl ~loc x
     | _ -> fail [ "DCODE"; "DTOKEN"; "DTYPE"; "DSTART"; "DLEFT"; "DRIGHT"; "DNONASSOC"; "DSEP" ]
 
@@ -590,7 +593,7 @@ module States = struct
     (* Reduce *)
     | ID _ | DCODE _ | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
       let loc = loc_reduce ~loc 0
-      and x = Actions.a4_option ~loc () in
+      and x = Actions.a2_option ~loc () in
       _c2_option ~loc x
     (* Shift *)
     | TYPE x ->
@@ -623,7 +626,7 @@ module States = struct
     (* Reduce *)
     | DCODE _ | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
       let loc = loc_reduce ~loc 0
-      and x = Actions.a7_list ~loc () in
+      and x = Actions.a5_list ~loc () in
       _c2_list ~loc x
     | _ -> fail [ "ID"; "DCODE"; "DTOKEN"; "DTYPE"; "DSTART"; "DLEFT"; "DRIGHT"; "DNONASSOC"; "DSEP" ]
 
@@ -651,7 +654,7 @@ module States = struct
     (* Reduce *)
     | DCODE _ | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
       let loc = loc_reduce ~loc 0
-      and x = Actions.a7_list ~loc () in
+      and x = Actions.a5_list ~loc () in
       _c2_list ~loc x
     | _ -> fail [ "ID"; "DCODE"; "DTOKEN"; "DTYPE"; "DSTART"; "DLEFT"; "DRIGHT"; "DNONASSOC"; "DSEP" ]
 
@@ -666,7 +669,7 @@ module States = struct
     (* Reduce *)
     | DCODE _ | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
       let loc = loc_reduce ~loc 2
-      and x = Actions.a8_list ~loc a0_list a1_id () in
+      and x = Actions.a6_list ~loc a0_list a1_id () in
       _c0_list ~loc x
     | _ -> fail [ "DCODE"; "DTOKEN"; "DTYPE"; "DSTART"; "DLEFT"; "DRIGHT"; "DNONASSOC"; "DSEP" ]
 
@@ -712,7 +715,7 @@ module States = struct
     (* Reduce *)
     | DCODE _ | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
       let loc = loc_reduce ~loc 0
-      and x = Actions.a7_list ~loc () in
+      and x = Actions.a5_list ~loc () in
       _c4_list ~loc x
     (* Shift *)
     | ID x ->
@@ -737,7 +740,7 @@ module States = struct
     (* Reduce *)
     | DCODE _ | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
       let loc = loc_reduce ~loc 2
-      and x = Actions.a14_decl ~loc a0_list () () in
+      and x = Actions.a13_decl ~loc a0_list () () in
       _c0_decl ~loc x
     | _ -> fail [ "DCODE"; "DTOKEN"; "DTYPE"; "DSTART"; "DLEFT"; "DRIGHT"; "DNONASSOC"; "DSEP" ]
 
@@ -768,7 +771,7 @@ module States = struct
     (* Reduce *)
     | DCODE _ | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
       let loc = loc_reduce ~loc 0
-      and x = Actions.a7_list ~loc () in
+      and x = Actions.a5_list ~loc () in
       _c4_list ~loc x
     (* Shift *)
     | ID x ->
@@ -793,7 +796,7 @@ module States = struct
     (* Reduce *)
     | DCODE _ | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
       let loc = loc_reduce ~loc 2
-      and x = Actions.a15_decl ~loc a0_list () () in
+      and x = Actions.a14_decl ~loc a0_list () () in
       _c0_decl ~loc x
     | _ -> fail [ "DCODE"; "DTOKEN"; "DTYPE"; "DSTART"; "DLEFT"; "DRIGHT"; "DNONASSOC"; "DSEP" ]
 
@@ -824,7 +827,7 @@ module States = struct
     (* Reduce *)
     | DCODE _ | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
       let loc = loc_reduce ~loc 0
-      and x = Actions.a7_list ~loc () in
+      and x = Actions.a5_list ~loc () in
       _c4_list ~loc x
     (* Shift *)
     | ID x ->
@@ -849,7 +852,7 @@ module States = struct
     (* Reduce *)
     | DCODE _ | DTOKEN | DTYPE | DSTART | DLEFT | DRIGHT | DNONASSOC | DSEP ->
       let loc = loc_reduce ~loc 2
-      and x = Actions.a16_decl ~loc a0_list () () in
+      and x = Actions.a15_decl ~loc a0_list () () in
       _c0_decl ~loc x
     | _ -> fail [ "DCODE"; "DTOKEN"; "DTYPE"; "DSTART"; "DLEFT"; "DRIGHT"; "DNONASSOC"; "DSEP" ]
 
@@ -884,7 +887,7 @@ module States = struct
     (* Reduce *)
     | DSEP ->
       let loc = loc_reduce ~loc 0
-      and x = Actions.a7_list ~loc () in
+      and x = Actions.a5_list ~loc () in
       _c2_list ~loc x
     (* Shift *)
     | DCODE x ->
@@ -934,7 +937,7 @@ module States = struct
     (* Reduce *)
     | DSEP ->
       let loc = loc_reduce ~loc 2
-      and x = Actions.a8_list ~loc a0_list a1_decl () in
+      and x = Actions.a6_list ~loc a0_list a1_decl () in
       _c0_list ~loc x
     | _ -> fail [ "DSEP" ]
 
@@ -955,53 +958,131 @@ module States = struct
 
   (* ITEMS:
        grammar' → list DSEP . list EOF
-       id → . ID 		/ COLON, LPAREN
-       rule → . id rule_parameters COLON rule_prods SEMI 		/ ID, EOF
+       rule → . boption id rule_parameters COLON rule_prods SEMI 		/ ID, DINLINE, EOF
+       boption → . DINLINE 		/ ID
+       boption → . 		/ ID
        list → . rule list 		/ EOF
        list → . 		/ EOF
      GOTO:
-       ID -> 12
-       id -> 33
-       rule -> 73
-       list -> 75
+       DINLINE -> 33
+       rule -> 34
+       boption -> 35
+       list -> 77
      ACTION:
-       ID -> shift
+       ID -> reduce 2 1
+       DINLINE -> shift
        EOF -> reduce 3 1 *)
   and state_32 ~loc a1_list _c0_grammar_starting =
-    let rec _c1_id ~loc x = state_33 ~loc x _c2_rule
-    and _c2_rule ~loc x = state_73 ~loc x _c3_list
-    and _c3_list ~loc x = state_75 ~loc x a1_list _c0_grammar_starting in
+    let rec _c1_rule ~loc x = state_34 ~loc x _c3_list
+    and _c2_boption ~loc x = state_35 ~loc x _c1_rule
+    and _c3_list ~loc x = state_77 ~loc x a1_list _c0_grammar_starting in
+    match lookahead () with
+    (* Reduce *)
+    | ID _ ->
+      let loc = loc_reduce ~loc 0
+      and x = Actions.a16_boption ~loc () in
+      _c2_boption ~loc x
+    (* Shift *)
+    | DINLINE ->
+      let _, _l = shift () in
+      let loc = loc_shift ~loc _l in
+      state_33 ~loc _c2_boption
+    (* Reduce *)
+    | EOF ->
+      let loc = loc_reduce ~loc 0
+      and x = Actions.a5_list ~loc () in
+      _c3_list ~loc x
+    | _ -> fail [ "ID"; "DINLINE"; "EOF" ]
+
+  (* ITEMS:
+       boption → DINLINE . 		/ ID
+     GOTO:
+       
+     ACTION:
+       ID -> reduce 0 0 *)
+  and state_33 ~loc _c0_boption =
+    match lookahead () with
+    (* Reduce *)
+    | ID _ ->
+      let loc = loc_reduce ~loc 1
+      and x = Actions.a17_boption ~loc () () in
+      _c0_boption ~loc x
+    | _ -> fail [ "ID" ]
+
+  (* ITEMS:
+       list → rule . list 		/ EOF
+       rule → . boption id rule_parameters COLON rule_prods SEMI 		/ ID, DINLINE, EOF
+       boption → . DINLINE 		/ ID
+       boption → . 		/ ID
+       list → . rule list 		/ EOF
+       list → . 		/ EOF
+     GOTO:
+       DINLINE -> 33
+       rule -> 34
+       boption -> 35
+       list -> 76
+     ACTION:
+       ID -> reduce 2 1
+       DINLINE -> shift
+       EOF -> reduce 3 1 *)
+  and state_34 ~loc a0_rule _c0_list =
+    let rec _c1_rule ~loc x = state_34 ~loc x _c3_list
+    and _c2_boption ~loc x = state_35 ~loc x _c1_rule
+    and _c3_list ~loc x = state_76 ~loc x a0_rule _c0_list in
+    match lookahead () with
+    (* Reduce *)
+    | ID _ ->
+      let loc = loc_reduce ~loc 0
+      and x = Actions.a16_boption ~loc () in
+      _c2_boption ~loc x
+    (* Shift *)
+    | DINLINE ->
+      let _, _l = shift () in
+      let loc = loc_shift ~loc _l in
+      state_33 ~loc _c2_boption
+    (* Reduce *)
+    | EOF ->
+      let loc = loc_reduce ~loc 0
+      and x = Actions.a5_list ~loc () in
+      _c3_list ~loc x
+    | _ -> fail [ "ID"; "DINLINE"; "EOF" ]
+
+  (* ITEMS:
+       rule → boption . id rule_parameters COLON rule_prods SEMI 		/ ID, DINLINE, EOF
+       id → . ID 		/ COLON, LPAREN
+     GOTO:
+       ID -> 12
+       id -> 36
+     ACTION:
+       ID -> shift *)
+  and state_35 ~loc a0_boption _c0_rule =
+    let rec _c1_id ~loc x = state_36 ~loc x a0_boption _c0_rule in
     match lookahead () with
     (* Shift *)
     | ID x ->
       let _, _l = shift () in
       let loc = loc_shift ~loc _l in
       state_12 ~loc x _c1_id
-    (* Reduce *)
-    | EOF ->
-      let loc = loc_reduce ~loc 0
-      and x = Actions.a7_list ~loc () in
-      _c3_list ~loc x
-    | _ -> fail [ "ID"; "EOF" ]
+    | _ -> fail [ "ID" ]
 
   (* ITEMS:
-       rule → id . rule_parameters COLON rule_prods SEMI 		/ ID, EOF
+       rule → boption id . rule_parameters COLON rule_prods SEMI 		/ ID, DINLINE, EOF
        rule_parameters → . LPAREN rule_parameter_list RPAREN 		/ COLON
        rule_parameters → . 		/ COLON
      GOTO:
-       LPAREN -> 34
-       rule_parameters -> 40
+       LPAREN -> 37
+       rule_parameters -> 43
      ACTION:
        LPAREN -> shift
        COLON -> reduce 1 1 *)
-  and state_33 ~loc a0_id _c0_rule =
-    let rec _c1_rule_parameters ~loc x = state_40 ~loc x a0_id _c0_rule in
+  and state_36 ~loc a0_id a1_boption _c0_rule =
+    let rec _c1_rule_parameters ~loc x = state_43 ~loc x a0_id a1_boption _c0_rule in
     match lookahead () with
     (* Shift *)
     | LPAREN ->
       let _, _l = shift () in
       let loc = loc_shift ~loc _l in
-      state_34 ~loc _c1_rule_parameters
+      state_37 ~loc _c1_rule_parameters
     (* Reduce *)
     | COLON ->
       let loc = loc_reduce ~loc 0
@@ -1023,21 +1104,21 @@ module States = struct
        TID -> 6
        tid -> 13
        id -> 14
-       symbol -> 35
-       rule_parameter_list -> 38
+       symbol -> 38
+       rule_parameter_list -> 41
      ACTION:
        RPAREN -> reduce 4 2
        ID TID -> shift *)
-  and state_34 ~loc _c0_rule_parameters =
+  and state_37 ~loc _c0_rule_parameters =
     let rec _c1_tid ~loc x = state_13 ~loc x _c3_symbol
     and _c2_id ~loc x = state_14 ~loc x _c3_symbol
-    and _c3_symbol ~loc x = state_35 ~loc x _c4_rule_parameter_list
-    and _c4_rule_parameter_list ~loc x = state_38 ~loc x _c0_rule_parameters in
+    and _c3_symbol ~loc x = state_38 ~loc x _c4_rule_parameter_list
+    and _c4_rule_parameter_list ~loc x = state_41 ~loc x _c0_rule_parameters in
     match lookahead () with
     (* Reduce *)
     | RPAREN ->
       let loc = loc_reduce ~loc 0
-      and x = Actions.a20_rule_parameter_list ~loc () in
+      and x = Actions.a19_rule_parameter_list ~loc () in
       _c4_rule_parameter_list ~loc x
     (* Shift *)
     | ID x ->
@@ -1055,22 +1136,22 @@ module States = struct
        rule_parameter_list → symbol . COMMA rule_parameter_list 		/ RPAREN
        rule_parameter_list → symbol . 		/ RPAREN
      GOTO:
-       COMMA -> 36
+       COMMA -> 39
      ACTION:
        RPAREN -> reduce 0 1
        COMMA -> shift *)
-  and state_35 ~loc a0_symbol _c0_rule_parameter_list =
+  and state_38 ~loc a0_symbol _c0_rule_parameter_list =
     match lookahead () with
     (* Reduce *)
     | RPAREN ->
       let loc = loc_reduce ~loc 1
-      and x = Actions.a21_rule_parameter_list ~loc a0_symbol () in
+      and x = Actions.a20_rule_parameter_list ~loc a0_symbol () in
       _c0_rule_parameter_list ~loc x
     (* Shift *)
     | COMMA ->
       let _, _l = shift () in
       let loc = loc_shift ~loc _l in
-      state_36 ~loc a0_symbol _c0_rule_parameter_list
+      state_39 ~loc a0_symbol _c0_rule_parameter_list
     | _ -> fail [ "COMMA"; "RPAREN" ]
 
   (* ITEMS:
@@ -1087,21 +1168,21 @@ module States = struct
        TID -> 6
        tid -> 13
        id -> 14
-       symbol -> 35
-       rule_parameter_list -> 37
+       symbol -> 38
+       rule_parameter_list -> 40
      ACTION:
        RPAREN -> reduce 4 2
        ID TID -> shift *)
-  and state_36 ~loc a1_symbol _c0_rule_parameter_list =
+  and state_39 ~loc a1_symbol _c0_rule_parameter_list =
     let rec _c1_tid ~loc x = state_13 ~loc x _c3_symbol
     and _c2_id ~loc x = state_14 ~loc x _c3_symbol
-    and _c3_symbol ~loc x = state_35 ~loc x _c4_rule_parameter_list
-    and _c4_rule_parameter_list ~loc x = state_37 ~loc x a1_symbol _c0_rule_parameter_list in
+    and _c3_symbol ~loc x = state_38 ~loc x _c4_rule_parameter_list
+    and _c4_rule_parameter_list ~loc x = state_40 ~loc x a1_symbol _c0_rule_parameter_list in
     match lookahead () with
     (* Reduce *)
     | RPAREN ->
       let loc = loc_reduce ~loc 0
-      and x = Actions.a20_rule_parameter_list ~loc () in
+      and x = Actions.a19_rule_parameter_list ~loc () in
       _c4_rule_parameter_list ~loc x
     (* Shift *)
     | ID x ->
@@ -1121,28 +1202,28 @@ module States = struct
        
      ACTION:
        RPAREN -> reduce 0 0 *)
-  and state_37 ~loc a0_rule_parameter_list a2_symbol _c0_rule_parameter_list =
+  and state_40 ~loc a0_rule_parameter_list a2_symbol _c0_rule_parameter_list =
     match lookahead () with
     (* Reduce *)
     | RPAREN ->
       let loc = loc_reduce ~loc 3
-      and x = Actions.a22_rule_parameter_list ~loc a0_rule_parameter_list () a2_symbol () in
+      and x = Actions.a21_rule_parameter_list ~loc a0_rule_parameter_list () a2_symbol () in
       _c0_rule_parameter_list ~loc x
     | _ -> fail [ "RPAREN" ]
 
   (* ITEMS:
        rule_parameters → LPAREN rule_parameter_list . RPAREN 		/ COLON
      GOTO:
-       RPAREN -> 39
+       RPAREN -> 42
      ACTION:
        RPAREN -> shift *)
-  and state_38 ~loc a0_rule_parameter_list _c0_rule_parameters =
+  and state_41 ~loc a0_rule_parameter_list _c0_rule_parameters =
     match lookahead () with
     (* Shift *)
     | RPAREN ->
       let _, _l = shift () in
       let loc = loc_shift ~loc _l in
-      state_39 ~loc a0_rule_parameter_list _c0_rule_parameters
+      state_42 ~loc a0_rule_parameter_list _c0_rule_parameters
     | _ -> fail [ "RPAREN" ]
 
   (* ITEMS:
@@ -1151,32 +1232,32 @@ module States = struct
        
      ACTION:
        COLON -> reduce 0 0 *)
-  and state_39 ~loc a1_rule_parameter_list _c0_rule_parameters =
+  and state_42 ~loc a1_rule_parameter_list _c0_rule_parameters =
     match lookahead () with
     (* Reduce *)
     | COLON ->
       let loc = loc_reduce ~loc 3
-      and x = Actions.a19_rule_parameters ~loc () a1_rule_parameter_list () () in
+      and x = Actions.a22_rule_parameters ~loc () a1_rule_parameter_list () () in
       _c0_rule_parameters ~loc x
     | _ -> fail [ "COLON" ]
 
   (* ITEMS:
-       rule → id rule_parameters . COLON rule_prods SEMI 		/ ID, EOF
+       rule → boption id rule_parameters . COLON rule_prods SEMI 		/ ID, DINLINE, EOF
      GOTO:
-       COLON -> 41
+       COLON -> 44
      ACTION:
        COLON -> shift *)
-  and state_40 ~loc a0_rule_parameters a1_id _c0_rule =
+  and state_43 ~loc a0_rule_parameters a1_id a2_boption _c0_rule =
     match lookahead () with
     (* Shift *)
     | COLON ->
       let _, _l = shift () in
       let loc = loc_shift ~loc _l in
-      state_41 ~loc a0_rule_parameters a1_id _c0_rule
+      state_44 ~loc a0_rule_parameters a1_id a2_boption _c0_rule
     | _ -> fail [ "COLON" ]
 
   (* ITEMS:
-       rule → id rule_parameters COLON . rule_prods SEMI 		/ ID, EOF
+       rule → boption id rule_parameters COLON . rule_prods SEMI 		/ ID, DINLINE, EOF
        tid → . TID 		/ ID, TID, CODE, DPREC, PLUS, QMARK, STAR, LPAREN
        id → . ID 		/ ID, TID, CODE, DPREC, EQ, PLUS, QMARK, STAR, LPAREN
        symbol → . id 		/ ID, TID, CODE, DPREC, PLUS, QMARK, STAR, LPAREN
@@ -1198,40 +1279,40 @@ module States = struct
      GOTO:
        ID -> 12
        TID -> 6
-       BAR -> 42
+       BAR -> 45
        tid -> 13
-       id -> 43
-       symbol -> 45
-       rule_prods -> 68
-       productions -> 70
-       production -> 71
-       producer -> 58
-       actual -> 59
-       list -> 61
+       id -> 46
+       symbol -> 48
+       rule_prods -> 71
+       productions -> 73
+       production -> 74
+       producer -> 61
+       actual -> 62
+       list -> 64
      ACTION:
        CODE DPREC -> reduce 9 1
        SEMI -> reduce 5 1
        ID TID BAR -> shift *)
-  and state_41 ~loc a1_rule_parameters a2_id _c0_rule =
+  and state_44 ~loc a1_rule_parameters a2_id a3_boption _c0_rule =
     let rec _c1_tid ~loc x = state_13 ~loc x _c3_symbol
-    and _c2_id ~loc x = state_43 ~loc x _c3_symbol _c7_producer
-    and _c3_symbol ~loc x = state_45 ~loc x _c8_actual
-    and _c4_rule_prods ~loc x = state_68 ~loc x a1_rule_parameters a2_id _c0_rule
-    and _c5_productions ~loc x = state_70 ~loc x _c4_rule_prods
-    and _c6_production ~loc x = state_71 ~loc x _c4_rule_prods
-    and _c7_producer ~loc x = state_58 ~loc x _c9_list
-    and _c8_actual ~loc x = state_59 ~loc x _c7_producer _c8_actual
-    and _c9_list ~loc x = state_61 ~loc x _c6_production in
+    and _c2_id ~loc x = state_46 ~loc x _c3_symbol _c7_producer
+    and _c3_symbol ~loc x = state_48 ~loc x _c8_actual
+    and _c4_rule_prods ~loc x = state_71 ~loc x a1_rule_parameters a2_id a3_boption _c0_rule
+    and _c5_productions ~loc x = state_73 ~loc x _c4_rule_prods
+    and _c6_production ~loc x = state_74 ~loc x _c4_rule_prods
+    and _c7_producer ~loc x = state_61 ~loc x _c9_list
+    and _c8_actual ~loc x = state_62 ~loc x _c7_producer _c8_actual
+    and _c9_list ~loc x = state_64 ~loc x _c6_production in
     match lookahead () with
     (* Reduce *)
     | CODE _ | DPREC ->
       let loc = loc_reduce ~loc 0
-      and x = Actions.a7_list ~loc () in
+      and x = Actions.a5_list ~loc () in
       _c9_list ~loc x
     (* Reduce *)
     | SEMI ->
       let loc = loc_reduce ~loc 0
-      and x = Actions.a24_productions ~loc () in
+      and x = Actions.a23_productions ~loc () in
       _c5_productions ~loc x
     (* Shift *)
     | ID x ->
@@ -1247,7 +1328,7 @@ module States = struct
     | BAR ->
       let _, _l = shift () in
       let loc = loc_shift ~loc _l in
-      state_42 ~loc _c5_productions
+      state_45 ~loc _c5_productions
     | _ -> fail [ "ID"; "TID"; "CODE"; "DPREC"; "BAR"; "SEMI" ]
 
   (* ITEMS:
@@ -1270,28 +1351,28 @@ module States = struct
        ID -> 12
        TID -> 6
        tid -> 13
-       id -> 43
-       symbol -> 45
-       production -> 56
-       producer -> 58
-       actual -> 59
-       list -> 61
+       id -> 46
+       symbol -> 48
+       production -> 59
+       producer -> 61
+       actual -> 62
+       list -> 64
      ACTION:
        CODE DPREC -> reduce 7 1
        ID TID -> shift *)
-  and state_42 ~loc _c0_productions =
+  and state_45 ~loc _c0_productions =
     let rec _c1_tid ~loc x = state_13 ~loc x _c3_symbol
-    and _c2_id ~loc x = state_43 ~loc x _c3_symbol _c5_producer
-    and _c3_symbol ~loc x = state_45 ~loc x _c6_actual
-    and _c4_production ~loc x = state_56 ~loc x _c0_productions
-    and _c5_producer ~loc x = state_58 ~loc x _c7_list
-    and _c6_actual ~loc x = state_59 ~loc x _c5_producer _c6_actual
-    and _c7_list ~loc x = state_61 ~loc x _c4_production in
+    and _c2_id ~loc x = state_46 ~loc x _c3_symbol _c5_producer
+    and _c3_symbol ~loc x = state_48 ~loc x _c6_actual
+    and _c4_production ~loc x = state_59 ~loc x _c0_productions
+    and _c5_producer ~loc x = state_61 ~loc x _c7_list
+    and _c6_actual ~loc x = state_62 ~loc x _c5_producer _c6_actual
+    and _c7_list ~loc x = state_64 ~loc x _c4_production in
     match lookahead () with
     (* Reduce *)
     | CODE _ | DPREC ->
       let loc = loc_reduce ~loc 0
-      and x = Actions.a7_list ~loc () in
+      and x = Actions.a5_list ~loc () in
       _c7_list ~loc x
     (* Shift *)
     | ID x ->
@@ -1309,22 +1390,22 @@ module States = struct
        symbol → id . 		/ ID, TID, CODE, DPREC, PLUS, QMARK, STAR, LPAREN
        producer → id . EQ actual 		/ ID, TID, CODE, DPREC
      GOTO:
-       EQ -> 44
+       EQ -> 47
      ACTION:
        ID TID CODE DPREC PLUS QMARK STAR LPAREN -> reduce 0 0
        EQ -> shift *)
-  and state_43 ~loc a0_id _c0_symbol _c1_producer =
+  and state_46 ~loc a0_id _c0_symbol _c1_producer =
     match lookahead () with
     (* Reduce *)
     | ID _ | TID _ | CODE _ | DPREC | PLUS | QMARK | STAR | LPAREN ->
       let loc = loc_reduce ~loc 1
-      and x = Actions.a12_symbol ~loc a0_id () in
+      and x = Actions.a10_symbol ~loc a0_id () in
       _c0_symbol ~loc x
     (* Shift *)
     | EQ ->
       let _, _l = shift () in
       let loc = loc_shift ~loc _l in
-      state_44 ~loc a0_id _c1_producer
+      state_47 ~loc a0_id _c1_producer
     | _ -> fail [ "ID"; "TID"; "CODE"; "DPREC"; "EQ"; "PLUS"; "QMARK"; "STAR"; "LPAREN" ]
 
   (* ITEMS:
@@ -1343,15 +1424,15 @@ module States = struct
        TID -> 6
        tid -> 13
        id -> 14
-       symbol -> 45
-       actual -> 55
+       symbol -> 48
+       actual -> 58
      ACTION:
        ID TID -> shift *)
-  and state_44 ~loc a1_id _c0_producer =
+  and state_47 ~loc a1_id _c0_producer =
     let rec _c1_tid ~loc x = state_13 ~loc x _c3_symbol
     and _c2_id ~loc x = state_14 ~loc x _c3_symbol
-    and _c3_symbol ~loc x = state_45 ~loc x _c4_actual
-    and _c4_actual ~loc x = state_55 ~loc x a1_id _c0_producer _c4_actual in
+    and _c3_symbol ~loc x = state_48 ~loc x _c4_actual
+    and _c4_actual ~loc x = state_58 ~loc x a1_id _c0_producer _c4_actual in
     match lookahead () with
     (* Shift *)
     | ID x ->
@@ -1369,21 +1450,21 @@ module States = struct
        actual → symbol . LPAREN actual_args RPAREN 		/ ID, TID, CODE, DPREC, COMMA, PLUS, QMARK, STAR, RPAREN
        actual → symbol . 		/ ID, TID, CODE, DPREC, COMMA, PLUS, QMARK, STAR, RPAREN
      GOTO:
-       LPAREN -> 46
+       LPAREN -> 49
      ACTION:
        LPAREN -> shift
        ID TID CODE DPREC COMMA PLUS QMARK STAR RPAREN -> reduce 0 1 *)
-  and state_45 ~loc a0_symbol _c0_actual =
+  and state_48 ~loc a0_symbol _c0_actual =
     match lookahead () with
     (* Shift *)
     | LPAREN ->
       let _, _l = shift () in
       let loc = loc_shift ~loc _l in
-      state_46 ~loc a0_symbol _c0_actual
+      state_49 ~loc a0_symbol _c0_actual
     (* Reduce *)
     | ID _ | TID _ | CODE _ | DPREC | COMMA | PLUS | QMARK | STAR | RPAREN ->
       let loc = loc_reduce ~loc 1
-      and x = Actions.a31_actual ~loc a0_symbol () in
+      and x = Actions.a27_actual ~loc a0_symbol () in
       _c0_actual ~loc x
     | _ -> fail [ "ID"; "TID"; "CODE"; "DPREC"; "COMMA"; "PLUS"; "QMARK"; "STAR"; "LPAREN"; "RPAREN" ]
 
@@ -1406,18 +1487,18 @@ module States = struct
        TID -> 6
        tid -> 13
        id -> 14
-       symbol -> 45
-       actual -> 47
-       actual_args -> 53
+       symbol -> 48
+       actual -> 50
+       actual_args -> 56
      ACTION:
        ID TID -> shift
        RPAREN -> reduce 5 2 *)
-  and state_46 ~loc a1_symbol _c0_actual =
+  and state_49 ~loc a1_symbol _c0_actual =
     let rec _c1_tid ~loc x = state_13 ~loc x _c3_symbol
     and _c2_id ~loc x = state_14 ~loc x _c3_symbol
-    and _c3_symbol ~loc x = state_45 ~loc x _c4_actual
-    and _c4_actual ~loc x = state_47 ~loc x _c4_actual _c5_actual_args
-    and _c5_actual_args ~loc x = state_53 ~loc x a1_symbol _c0_actual in
+    and _c3_symbol ~loc x = state_48 ~loc x _c4_actual
+    and _c4_actual ~loc x = state_50 ~loc x _c4_actual _c5_actual_args
+    and _c5_actual_args ~loc x = state_56 ~loc x a1_symbol _c0_actual in
     match lookahead () with
     (* Shift *)
     | ID x ->
@@ -1432,7 +1513,7 @@ module States = struct
     (* Reduce *)
     | RPAREN ->
       let loc = loc_reduce ~loc 0
-      and x = Actions.a33_actual_args ~loc () in
+      and x = Actions.a28_actual_args ~loc () in
       _c5_actual_args ~loc x
     | _ -> fail [ "ID"; "TID"; "RPAREN" ]
 
@@ -1443,39 +1524,39 @@ module States = struct
        actual_args → actual . COMMA actual_args 		/ RPAREN
        actual_args → actual . 		/ RPAREN
      GOTO:
-       COMMA -> 48
-       PLUS -> 50
-       QMARK -> 51
-       STAR -> 52
+       COMMA -> 51
+       PLUS -> 53
+       QMARK -> 54
+       STAR -> 55
      ACTION:
        COMMA PLUS QMARK STAR -> shift
        RPAREN -> reduce 1 1 *)
-  and state_47 ~loc a0_actual _c0_actual _c1_actual_args =
+  and state_50 ~loc a0_actual _c0_actual _c1_actual_args =
     match lookahead () with
     (* Shift *)
     | COMMA ->
       let _, _l = shift () in
       let loc = loc_shift ~loc _l in
-      state_48 ~loc a0_actual _c1_actual_args
+      state_51 ~loc a0_actual _c1_actual_args
     (* Shift *)
     | PLUS ->
       let _, _l = shift () in
       let loc = loc_shift ~loc _l in
-      state_50 ~loc a0_actual _c0_actual
+      state_53 ~loc a0_actual _c0_actual
     (* Shift *)
     | QMARK ->
       let _, _l = shift () in
       let loc = loc_shift ~loc _l in
-      state_51 ~loc a0_actual _c0_actual
+      state_54 ~loc a0_actual _c0_actual
     (* Shift *)
     | STAR ->
       let _, _l = shift () in
       let loc = loc_shift ~loc _l in
-      state_52 ~loc a0_actual _c0_actual
+      state_55 ~loc a0_actual _c0_actual
     (* Reduce *)
     | RPAREN ->
       let loc = loc_reduce ~loc 1
-      and x = Actions.a34_actual_args ~loc a0_actual () in
+      and x = Actions.a29_actual_args ~loc a0_actual () in
       _c1_actual_args ~loc x
     | _ -> fail [ "COMMA"; "PLUS"; "QMARK"; "STAR"; "RPAREN" ]
 
@@ -1498,18 +1579,18 @@ module States = struct
        TID -> 6
        tid -> 13
        id -> 14
-       symbol -> 45
-       actual -> 47
-       actual_args -> 49
+       symbol -> 48
+       actual -> 50
+       actual_args -> 52
      ACTION:
        ID TID -> shift
        RPAREN -> reduce 5 2 *)
-  and state_48 ~loc a1_actual _c0_actual_args =
+  and state_51 ~loc a1_actual _c0_actual_args =
     let rec _c1_tid ~loc x = state_13 ~loc x _c3_symbol
     and _c2_id ~loc x = state_14 ~loc x _c3_symbol
-    and _c3_symbol ~loc x = state_45 ~loc x _c4_actual
-    and _c4_actual ~loc x = state_47 ~loc x _c4_actual _c5_actual_args
-    and _c5_actual_args ~loc x = state_49 ~loc x a1_actual _c0_actual_args in
+    and _c3_symbol ~loc x = state_48 ~loc x _c4_actual
+    and _c4_actual ~loc x = state_50 ~loc x _c4_actual _c5_actual_args
+    and _c5_actual_args ~loc x = state_52 ~loc x a1_actual _c0_actual_args in
     match lookahead () with
     (* Shift *)
     | ID x ->
@@ -1524,7 +1605,7 @@ module States = struct
     (* Reduce *)
     | RPAREN ->
       let loc = loc_reduce ~loc 0
-      and x = Actions.a33_actual_args ~loc () in
+      and x = Actions.a28_actual_args ~loc () in
       _c5_actual_args ~loc x
     | _ -> fail [ "ID"; "TID"; "RPAREN" ]
 
@@ -1534,12 +1615,12 @@ module States = struct
        
      ACTION:
        RPAREN -> reduce 0 0 *)
-  and state_49 ~loc a0_actual_args a2_actual _c0_actual_args =
+  and state_52 ~loc a0_actual_args a2_actual _c0_actual_args =
     match lookahead () with
     (* Reduce *)
     | RPAREN ->
       let loc = loc_reduce ~loc 3
-      and x = Actions.a35_actual_args ~loc a0_actual_args () a2_actual () in
+      and x = Actions.a30_actual_args ~loc a0_actual_args () a2_actual () in
       _c0_actual_args ~loc x
     | _ -> fail [ "RPAREN" ]
 
@@ -1549,12 +1630,12 @@ module States = struct
        
      ACTION:
        ID TID CODE DPREC COMMA PLUS QMARK STAR RPAREN -> reduce 0 0 *)
-  and state_50 ~loc a1_actual _c0_actual =
+  and state_53 ~loc a1_actual _c0_actual =
     match lookahead () with
     (* Reduce *)
     | ID _ | TID _ | CODE _ | DPREC | COMMA | PLUS | QMARK | STAR | RPAREN ->
       let loc = loc_reduce ~loc 2
-      and x = Actions.a28_actual ~loc () a1_actual () in
+      and x = Actions.a24_actual ~loc () a1_actual () in
       _c0_actual ~loc x
     | _ -> fail [ "ID"; "TID"; "CODE"; "DPREC"; "COMMA"; "PLUS"; "QMARK"; "STAR"; "RPAREN" ]
 
@@ -1564,12 +1645,12 @@ module States = struct
        
      ACTION:
        ID TID CODE DPREC COMMA PLUS QMARK STAR RPAREN -> reduce 0 0 *)
-  and state_51 ~loc a1_actual _c0_actual =
+  and state_54 ~loc a1_actual _c0_actual =
     match lookahead () with
     (* Reduce *)
     | ID _ | TID _ | CODE _ | DPREC | COMMA | PLUS | QMARK | STAR | RPAREN ->
       let loc = loc_reduce ~loc 2
-      and x = Actions.a30_actual ~loc () a1_actual () in
+      and x = Actions.a26_actual ~loc () a1_actual () in
       _c0_actual ~loc x
     | _ -> fail [ "ID"; "TID"; "CODE"; "DPREC"; "COMMA"; "PLUS"; "QMARK"; "STAR"; "RPAREN" ]
 
@@ -1579,28 +1660,28 @@ module States = struct
        
      ACTION:
        ID TID CODE DPREC COMMA PLUS QMARK STAR RPAREN -> reduce 0 0 *)
-  and state_52 ~loc a1_actual _c0_actual =
+  and state_55 ~loc a1_actual _c0_actual =
     match lookahead () with
     (* Reduce *)
     | ID _ | TID _ | CODE _ | DPREC | COMMA | PLUS | QMARK | STAR | RPAREN ->
       let loc = loc_reduce ~loc 2
-      and x = Actions.a29_actual ~loc () a1_actual () in
+      and x = Actions.a25_actual ~loc () a1_actual () in
       _c0_actual ~loc x
     | _ -> fail [ "ID"; "TID"; "CODE"; "DPREC"; "COMMA"; "PLUS"; "QMARK"; "STAR"; "RPAREN" ]
 
   (* ITEMS:
        actual → symbol LPAREN actual_args . RPAREN 		/ ID, TID, CODE, DPREC, COMMA, PLUS, QMARK, STAR, RPAREN
      GOTO:
-       RPAREN -> 54
+       RPAREN -> 57
      ACTION:
        RPAREN -> shift *)
-  and state_53 ~loc a0_actual_args a2_symbol _c0_actual =
+  and state_56 ~loc a0_actual_args a2_symbol _c0_actual =
     match lookahead () with
     (* Shift *)
     | RPAREN ->
       let _, _l = shift () in
       let loc = loc_shift ~loc _l in
-      state_54 ~loc a0_actual_args a2_symbol _c0_actual
+      state_57 ~loc a0_actual_args a2_symbol _c0_actual
     | _ -> fail [ "RPAREN" ]
 
   (* ITEMS:
@@ -1609,12 +1690,12 @@ module States = struct
        
      ACTION:
        ID TID CODE DPREC COMMA PLUS QMARK STAR RPAREN -> reduce 0 0 *)
-  and state_54 ~loc a1_actual_args a3_symbol _c0_actual =
+  and state_57 ~loc a1_actual_args a3_symbol _c0_actual =
     match lookahead () with
     (* Reduce *)
     | ID _ | TID _ | CODE _ | DPREC | COMMA | PLUS | QMARK | STAR | RPAREN ->
       let loc = loc_reduce ~loc 4
-      and x = Actions.a32_actual ~loc () a1_actual_args () a3_symbol () in
+      and x = Actions.a31_actual ~loc () a1_actual_args () a3_symbol () in
       _c0_actual ~loc x
     | _ -> fail [ "ID"; "TID"; "CODE"; "DPREC"; "COMMA"; "PLUS"; "QMARK"; "STAR"; "RPAREN" ]
 
@@ -1624,34 +1705,34 @@ module States = struct
        actual → actual . STAR 		/ ID, TID, CODE, DPREC, PLUS, QMARK, STAR
        actual → actual . QMARK 		/ ID, TID, CODE, DPREC, PLUS, QMARK, STAR
      GOTO:
-       PLUS -> 50
-       QMARK -> 51
-       STAR -> 52
+       PLUS -> 53
+       QMARK -> 54
+       STAR -> 55
      ACTION:
        ID TID CODE DPREC -> reduce 0 0
        PLUS QMARK STAR -> shift *)
-  and state_55 ~loc a0_actual a2_id _c0_producer _c1_actual =
+  and state_58 ~loc a0_actual a2_id _c0_producer _c1_actual =
     match lookahead () with
     (* Reduce *)
     | ID _ | TID _ | CODE _ | DPREC ->
       let loc = loc_reduce ~loc 3
-      and x = Actions.a27_producer ~loc a0_actual () a2_id () in
+      and x = Actions.a32_producer ~loc a0_actual () a2_id () in
       _c0_producer ~loc x
     (* Shift *)
     | PLUS ->
       let _, _l = shift () in
       let loc = loc_shift ~loc _l in
-      state_50 ~loc a0_actual _c1_actual
+      state_53 ~loc a0_actual _c1_actual
     (* Shift *)
     | QMARK ->
       let _, _l = shift () in
       let loc = loc_shift ~loc _l in
-      state_51 ~loc a0_actual _c1_actual
+      state_54 ~loc a0_actual _c1_actual
     (* Shift *)
     | STAR ->
       let _, _l = shift () in
       let loc = loc_shift ~loc _l in
-      state_52 ~loc a0_actual _c1_actual
+      state_55 ~loc a0_actual _c1_actual
     | _ -> fail [ "ID"; "TID"; "CODE"; "DPREC"; "PLUS"; "QMARK"; "STAR" ]
 
   (* ITEMS:
@@ -1659,23 +1740,23 @@ module States = struct
        productions → . BAR production productions 		/ SEMI
        productions → . 		/ SEMI
      GOTO:
-       BAR -> 42
-       productions -> 57
+       BAR -> 45
+       productions -> 60
      ACTION:
        BAR -> shift
        SEMI -> reduce 1 1 *)
-  and state_56 ~loc a0_production _c0_productions =
-    let rec _c1_productions ~loc x = state_57 ~loc x a0_production _c0_productions in
+  and state_59 ~loc a0_production _c0_productions =
+    let rec _c1_productions ~loc x = state_60 ~loc x a0_production _c0_productions in
     match lookahead () with
     (* Shift *)
     | BAR ->
       let _, _l = shift () in
       let loc = loc_shift ~loc _l in
-      state_42 ~loc _c1_productions
+      state_45 ~loc _c1_productions
     (* Reduce *)
     | SEMI ->
       let loc = loc_reduce ~loc 0
-      and x = Actions.a24_productions ~loc () in
+      and x = Actions.a23_productions ~loc () in
       _c1_productions ~loc x
     | _ -> fail [ "BAR"; "SEMI" ]
 
@@ -1685,12 +1766,12 @@ module States = struct
        
      ACTION:
        SEMI -> reduce 0 0 *)
-  and state_57 ~loc a0_productions a1_production _c0_productions =
+  and state_60 ~loc a0_productions a1_production _c0_productions =
     match lookahead () with
     (* Reduce *)
     | SEMI ->
       let loc = loc_reduce ~loc 3
-      and x = Actions.a25_productions ~loc a0_productions a1_production () () in
+      and x = Actions.a37_productions ~loc a0_productions a1_production () () in
       _c0_productions ~loc x
     | _ -> fail [ "SEMI" ]
 
@@ -1713,26 +1794,26 @@ module States = struct
        ID -> 12
        TID -> 6
        tid -> 13
-       id -> 43
-       symbol -> 45
-       producer -> 58
-       actual -> 59
-       list -> 60
+       id -> 46
+       symbol -> 48
+       producer -> 61
+       actual -> 62
+       list -> 63
      ACTION:
        CODE DPREC -> reduce 6 1
        ID TID -> shift *)
-  and state_58 ~loc a0_producer _c0_list =
+  and state_61 ~loc a0_producer _c0_list =
     let rec _c1_tid ~loc x = state_13 ~loc x _c3_symbol
-    and _c2_id ~loc x = state_43 ~loc x _c3_symbol _c4_producer
-    and _c3_symbol ~loc x = state_45 ~loc x _c5_actual
-    and _c4_producer ~loc x = state_58 ~loc x _c6_list
-    and _c5_actual ~loc x = state_59 ~loc x _c4_producer _c5_actual
-    and _c6_list ~loc x = state_60 ~loc x a0_producer _c0_list in
+    and _c2_id ~loc x = state_46 ~loc x _c3_symbol _c4_producer
+    and _c3_symbol ~loc x = state_48 ~loc x _c5_actual
+    and _c4_producer ~loc x = state_61 ~loc x _c6_list
+    and _c5_actual ~loc x = state_62 ~loc x _c4_producer _c5_actual
+    and _c6_list ~loc x = state_63 ~loc x a0_producer _c0_list in
     match lookahead () with
     (* Reduce *)
     | CODE _ | DPREC ->
       let loc = loc_reduce ~loc 0
-      and x = Actions.a7_list ~loc () in
+      and x = Actions.a5_list ~loc () in
       _c6_list ~loc x
     (* Shift *)
     | ID x ->
@@ -1752,34 +1833,34 @@ module States = struct
        actual → actual . STAR 		/ ID, TID, CODE, DPREC, PLUS, QMARK, STAR
        actual → actual . QMARK 		/ ID, TID, CODE, DPREC, PLUS, QMARK, STAR
      GOTO:
-       PLUS -> 50
-       QMARK -> 51
-       STAR -> 52
+       PLUS -> 53
+       QMARK -> 54
+       STAR -> 55
      ACTION:
        ID TID CODE DPREC -> reduce 0 0
        PLUS QMARK STAR -> shift *)
-  and state_59 ~loc a0_actual _c0_producer _c1_actual =
+  and state_62 ~loc a0_actual _c0_producer _c1_actual =
     match lookahead () with
     (* Reduce *)
     | ID _ | TID _ | CODE _ | DPREC ->
       let loc = loc_reduce ~loc 1
-      and x = Actions.a36_producer ~loc a0_actual () in
+      and x = Actions.a33_producer ~loc a0_actual () in
       _c0_producer ~loc x
     (* Shift *)
     | PLUS ->
       let _, _l = shift () in
       let loc = loc_shift ~loc _l in
-      state_50 ~loc a0_actual _c1_actual
+      state_53 ~loc a0_actual _c1_actual
     (* Shift *)
     | QMARK ->
       let _, _l = shift () in
       let loc = loc_shift ~loc _l in
-      state_51 ~loc a0_actual _c1_actual
+      state_54 ~loc a0_actual _c1_actual
     (* Shift *)
     | STAR ->
       let _, _l = shift () in
       let loc = loc_shift ~loc _l in
-      state_52 ~loc a0_actual _c1_actual
+      state_55 ~loc a0_actual _c1_actual
     | _ -> fail [ "ID"; "TID"; "CODE"; "DPREC"; "PLUS"; "QMARK"; "STAR" ]
 
   (* ITEMS:
@@ -1788,12 +1869,12 @@ module States = struct
        
      ACTION:
        CODE DPREC -> reduce 0 0 *)
-  and state_60 ~loc a0_list a1_producer _c0_list =
+  and state_63 ~loc a0_list a1_producer _c0_list =
     match lookahead () with
     (* Reduce *)
     | CODE _ | DPREC ->
       let loc = loc_reduce ~loc 2
-      and x = Actions.a8_list ~loc a0_list a1_producer () in
+      and x = Actions.a6_list ~loc a0_list a1_producer () in
       _c0_list ~loc x
     | _ -> fail [ "CODE"; "DPREC" ]
 
@@ -1803,25 +1884,25 @@ module States = struct
        option → . prec 		/ CODE
        option → . 		/ CODE
      GOTO:
-       DPREC -> 62
-       prec -> 64
-       option -> 65
+       DPREC -> 65
+       prec -> 67
+       option -> 68
      ACTION:
        DPREC -> shift
        CODE -> reduce 2 1 *)
-  and state_61 ~loc a0_list _c0_production =
-    let rec _c1_prec ~loc x = state_64 ~loc x _c2_option
-    and _c2_option ~loc x = state_65 ~loc x a0_list _c0_production in
+  and state_64 ~loc a0_list _c0_production =
+    let rec _c1_prec ~loc x = state_67 ~loc x _c2_option
+    and _c2_option ~loc x = state_68 ~loc x a0_list _c0_production in
     match lookahead () with
     (* Shift *)
     | DPREC ->
       let _, _l = shift () in
       let loc = loc_shift ~loc _l in
-      state_62 ~loc _c1_prec
+      state_65 ~loc _c1_prec
     (* Reduce *)
     | CODE _ ->
       let loc = loc_reduce ~loc 0
-      and x = Actions.a4_option ~loc () in
+      and x = Actions.a2_option ~loc () in
       _c2_option ~loc x
     | _ -> fail [ "CODE"; "DPREC" ]
 
@@ -1836,13 +1917,13 @@ module States = struct
        TID -> 6
        tid -> 13
        id -> 14
-       symbol -> 63
+       symbol -> 66
      ACTION:
        ID TID -> shift *)
-  and state_62 ~loc _c0_prec =
+  and state_65 ~loc _c0_prec =
     let rec _c1_tid ~loc x = state_13 ~loc x _c3_symbol
     and _c2_id ~loc x = state_14 ~loc x _c3_symbol
-    and _c3_symbol ~loc x = state_63 ~loc x _c0_prec in
+    and _c3_symbol ~loc x = state_66 ~loc x _c0_prec in
     match lookahead () with
     (* Shift *)
     | ID x ->
@@ -1862,12 +1943,12 @@ module States = struct
        
      ACTION:
        CODE -> reduce 0 0 *)
-  and state_63 ~loc a0_symbol _c0_prec =
+  and state_66 ~loc a0_symbol _c0_prec =
     match lookahead () with
     (* Reduce *)
     | CODE _ ->
       let loc = loc_reduce ~loc 2
-      and x = Actions.a37_prec ~loc a0_symbol () () in
+      and x = Actions.a34_prec ~loc a0_symbol () () in
       _c0_prec ~loc x
     | _ -> fail [ "CODE" ]
 
@@ -1877,12 +1958,12 @@ module States = struct
        
      ACTION:
        CODE -> reduce 0 0 *)
-  and state_64 ~loc a0_prec _c0_option =
+  and state_67 ~loc a0_prec _c0_option =
     match lookahead () with
     (* Reduce *)
     | CODE _ ->
       let loc = loc_reduce ~loc 1
-      and x = Actions.a5_option ~loc a0_prec () in
+      and x = Actions.a3_option ~loc a0_prec () in
       _c0_option ~loc x
     | _ -> fail [ "CODE" ]
 
@@ -1890,18 +1971,18 @@ module States = struct
        production → list option . code 		/ BAR, SEMI
        code → . CODE 		/ BAR, SEMI
      GOTO:
-       CODE -> 66
-       code -> 67
+       CODE -> 69
+       code -> 70
      ACTION:
        CODE -> shift *)
-  and state_65 ~loc a0_option a1_list _c0_production =
-    let rec _c1_code ~loc x = state_67 ~loc x a0_option a1_list _c0_production in
+  and state_68 ~loc a0_option a1_list _c0_production =
+    let rec _c1_code ~loc x = state_70 ~loc x a0_option a1_list _c0_production in
     match lookahead () with
     (* Shift *)
     | CODE x ->
       let _, _l = shift () in
       let loc = loc_shift ~loc _l in
-      state_66 ~loc x _c1_code
+      state_69 ~loc x _c1_code
     | _ -> fail [ "CODE" ]
 
   (* ITEMS:
@@ -1910,12 +1991,12 @@ module States = struct
        
      ACTION:
        BAR SEMI -> reduce 0 0 *)
-  and state_66 ~loc a0_CODE _c0_code =
+  and state_69 ~loc a0_CODE _c0_code =
     match lookahead () with
     (* Reduce *)
     | BAR | SEMI ->
       let loc = loc_reduce ~loc 1
-      and x = Actions.a38_code ~loc a0_CODE () in
+      and x = Actions.a35_code ~loc a0_CODE () in
       _c0_code ~loc x
     | _ -> fail [ "BAR"; "SEMI" ]
 
@@ -1925,44 +2006,44 @@ module States = struct
        
      ACTION:
        BAR SEMI -> reduce 0 0 *)
-  and state_67 ~loc a0_code a1_option a2_list _c0_production =
+  and state_70 ~loc a0_code a1_option a2_list _c0_production =
     match lookahead () with
     (* Reduce *)
     | BAR | SEMI ->
       let loc = loc_reduce ~loc 3
-      and x = Actions.a26_production ~loc a0_code a1_option a2_list () in
+      and x = Actions.a36_production ~loc a0_code a1_option a2_list () in
       _c0_production ~loc x
     | _ -> fail [ "BAR"; "SEMI" ]
 
   (* ITEMS:
-       rule → id rule_parameters COLON rule_prods . SEMI 		/ ID, EOF
+       rule → boption id rule_parameters COLON rule_prods . SEMI 		/ ID, DINLINE, EOF
      GOTO:
-       SEMI -> 69
+       SEMI -> 72
      ACTION:
        SEMI -> shift *)
-  and state_68 ~loc a0_rule_prods a2_rule_parameters a3_id _c0_rule =
+  and state_71 ~loc a0_rule_prods a2_rule_parameters a3_id a4_boption _c0_rule =
     match lookahead () with
     (* Shift *)
     | SEMI ->
       let _, _l = shift () in
       let loc = loc_shift ~loc _l in
-      state_69 ~loc a0_rule_prods a2_rule_parameters a3_id _c0_rule
+      state_72 ~loc a0_rule_prods a2_rule_parameters a3_id a4_boption _c0_rule
     | _ -> fail [ "SEMI" ]
 
   (* ITEMS:
-       rule → id rule_parameters COLON rule_prods SEMI . 		/ ID, EOF
+       rule → boption id rule_parameters COLON rule_prods SEMI . 		/ ID, DINLINE, EOF
      GOTO:
        
      ACTION:
-       ID EOF -> reduce 0 0 *)
-  and state_69 ~loc a1_rule_prods a3_rule_parameters a4_id _c0_rule =
+       ID DINLINE EOF -> reduce 0 0 *)
+  and state_72 ~loc a1_rule_prods a3_rule_parameters a4_id a5_boption _c0_rule =
     match lookahead () with
     (* Reduce *)
-    | ID _ | EOF ->
-      let loc = loc_reduce ~loc 5
-      and x = Actions.a17_rule ~loc () a1_rule_prods () a3_rule_parameters a4_id () in
+    | ID _ | DINLINE | EOF ->
+      let loc = loc_reduce ~loc 6
+      and x = Actions.a40_rule ~loc () a1_rule_prods () a3_rule_parameters a4_id a5_boption () in
       _c0_rule ~loc x
-    | _ -> fail [ "ID"; "EOF" ]
+    | _ -> fail [ "ID"; "DINLINE"; "EOF" ]
 
   (* ITEMS:
        rule_prods → productions . 		/ SEMI
@@ -1970,12 +2051,12 @@ module States = struct
        
      ACTION:
        SEMI -> reduce 0 0 *)
-  and state_70 ~loc a0_productions _c0_rule_prods =
+  and state_73 ~loc a0_productions _c0_rule_prods =
     match lookahead () with
     (* Reduce *)
     | SEMI ->
       let loc = loc_reduce ~loc 1
-      and x = Actions.a23_rule_prods ~loc a0_productions () in
+      and x = Actions.a38_rule_prods ~loc a0_productions () in
       _c0_rule_prods ~loc x
     | _ -> fail [ "SEMI" ]
 
@@ -1984,23 +2065,23 @@ module States = struct
        productions → . BAR production productions 		/ SEMI
        productions → . 		/ SEMI
      GOTO:
-       BAR -> 42
-       productions -> 72
+       BAR -> 45
+       productions -> 75
      ACTION:
        BAR -> shift
        SEMI -> reduce 1 1 *)
-  and state_71 ~loc a0_production _c0_rule_prods =
-    let rec _c1_productions ~loc x = state_72 ~loc x a0_production _c0_rule_prods in
+  and state_74 ~loc a0_production _c0_rule_prods =
+    let rec _c1_productions ~loc x = state_75 ~loc x a0_production _c0_rule_prods in
     match lookahead () with
     (* Shift *)
     | BAR ->
       let _, _l = shift () in
       let loc = loc_shift ~loc _l in
-      state_42 ~loc _c1_productions
+      state_45 ~loc _c1_productions
     (* Reduce *)
     | SEMI ->
       let loc = loc_reduce ~loc 0
-      and x = Actions.a24_productions ~loc () in
+      and x = Actions.a23_productions ~loc () in
       _c1_productions ~loc x
     | _ -> fail [ "BAR"; "SEMI" ]
 
@@ -2010,7 +2091,7 @@ module States = struct
        
      ACTION:
        SEMI -> reduce 0 0 *)
-  and state_72 ~loc a0_productions a1_production _c0_rule_prods =
+  and state_75 ~loc a0_productions a1_production _c0_rule_prods =
     match lookahead () with
     (* Reduce *)
     | SEMI ->
@@ -2020,64 +2101,33 @@ module States = struct
     | _ -> fail [ "SEMI" ]
 
   (* ITEMS:
-       list → rule . list 		/ EOF
-       id → . ID 		/ COLON, LPAREN
-       rule → . id rule_parameters COLON rule_prods SEMI 		/ ID, EOF
-       list → . rule list 		/ EOF
-       list → . 		/ EOF
-     GOTO:
-       ID -> 12
-       id -> 33
-       rule -> 73
-       list -> 74
-     ACTION:
-       ID -> shift
-       EOF -> reduce 3 1 *)
-  and state_73 ~loc a0_rule _c0_list =
-    let rec _c1_id ~loc x = state_33 ~loc x _c2_rule
-    and _c2_rule ~loc x = state_73 ~loc x _c3_list
-    and _c3_list ~loc x = state_74 ~loc x a0_rule _c0_list in
-    match lookahead () with
-    (* Shift *)
-    | ID x ->
-      let _, _l = shift () in
-      let loc = loc_shift ~loc _l in
-      state_12 ~loc x _c1_id
-    (* Reduce *)
-    | EOF ->
-      let loc = loc_reduce ~loc 0
-      and x = Actions.a7_list ~loc () in
-      _c3_list ~loc x
-    | _ -> fail [ "ID"; "EOF" ]
-
-  (* ITEMS:
        list → rule list . 		/ EOF
      GOTO:
        
      ACTION:
        EOF -> reduce 0 0 *)
-  and state_74 ~loc a0_list a1_rule _c0_list =
+  and state_76 ~loc a0_list a1_rule _c0_list =
     match lookahead () with
     (* Reduce *)
     | EOF ->
       let loc = loc_reduce ~loc 2
-      and x = Actions.a8_list ~loc a0_list a1_rule () in
+      and x = Actions.a6_list ~loc a0_list a1_rule () in
       _c0_list ~loc x
     | _ -> fail [ "EOF" ]
 
   (* ITEMS:
        grammar' → list DSEP list . EOF
      GOTO:
-       EOF -> 76
+       EOF -> 78
      ACTION:
        EOF -> shift *)
-  and state_75 ~loc a0_list a2_list _c0_grammar_starting =
+  and state_77 ~loc a0_list a2_list _c0_grammar_starting =
     match lookahead () with
     (* Shift *)
     | EOF ->
       let _, _l = shift () in
       let loc = loc_shift ~loc _l in
-      state_76 ~loc a0_list a2_list _c0_grammar_starting
+      state_78 ~loc a0_list a2_list _c0_grammar_starting
     | _ -> fail [ "EOF" ]
 
   (* ITEMS:
@@ -2086,9 +2136,9 @@ module States = struct
        
      ACTION:
         *)
-  and state_76 ~loc a1_list a3_list _c0_grammar_starting =
+  and state_78 ~loc a1_list a3_list _c0_grammar_starting =
     (* Reduce *)
-    let x = Actions.a0_grammar ~loc () a1_list () a3_list () in
+    let x = Actions.a41_grammar ~loc () a1_list () a3_list () in
     _c0_grammar_starting x
   ;;
 end

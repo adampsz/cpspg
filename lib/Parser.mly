@@ -18,7 +18,7 @@ let plus, star, qmark =
 %token<code> CODE
 %token<string> DCODE
 %token DTOKEN DTYPE DSTART DLEFT DRIGHT DNONASSOC DSEP
-%token DPREC
+%token DINLINE DPREC
 %token BAR COLON COMMA EQ PLUS QMARK SEMI STAR LPAREN RPAREN
 %token EOF
 
@@ -39,8 +39,9 @@ decl:
 ;
 
 rule:
-  | id=id params=rule_parameters COLON
-    prods=rule_prods SEMI { { id; params; prods } }
+  | inline=boption(DINLINE)
+    id=id params=rule_parameters COLON
+    prods=rule_prods SEMI { { id; inline; params; prods } }
 ;
 
 rule_parameters:
