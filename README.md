@@ -17,13 +17,13 @@ continuation-passing style, which allows for better type inference and more effi
   - Named semantic values using the `id=symbol` syntax
   - Keywords such as `$startpos` and `$loc`
   - Parametric rules using the `rule(param1, param2)` syntax
-  - A subset of menhir's standard library, including `list` and `option`
+  - Full support for menhir's standard library
   - Shorthand notations `*`, `+`, and `?`
+  - `%inline` rules
 
 Planned but not yet supported:
 
 - Error recovery
-- `%inline` rules
 - Anonymous rules
 - Parametric semantic actions
 
