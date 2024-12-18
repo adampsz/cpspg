@@ -20,11 +20,11 @@ continuation-passing style, which allows for better type inference and more effi
   - Full support for menhir's standard library
   - Shorthand notations `*`, `+`, and `?`
   - `%inline` rules
+  - Anonymous rules
 
 Planned but not yet supported:
 
 - Error recovery
-- Anonymous rules
 - Parametric semantic actions
 
 ## Usage

@@ -84,7 +84,6 @@ type group =
 type semantic_action =
   { sa_args : string option list
   ; sa_code : Ast.code node
-  ; sa_rule : string node
   }
 
 type action =

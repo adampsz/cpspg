@@ -5,9 +5,9 @@ let _ =
   Alcotest.run
     "param"
     [ ( "flip"
-      , [ check "A-AAA" [ A; SEP; A; A; A; EOF ] [ true; true; true; true ]
-        ; check "A-BAB" [ A; SEP; B; A; B; EOF ] [ true; false; true; false ]
-        ; check "B-BBB" [ B; SEP; B; B; B; EOF ] [ false; false; false; false ]
+      , [ check "A-A-AA" [ A; SEP; A; SEP; A; A; EOF ] [ true; true; true; true ]
+        ; check "A-B-AB" [ A; SEP; B; SEP; A; B; EOF ] [ true; false; true; false ]
+        ; check "B-B-BB" [ B; SEP; B; SEP; B; B; EOF ] [ false; false; false; false ]
         ] )
     ]
 ;;

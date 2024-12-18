@@ -36,9 +36,14 @@ type actual =
   ; args : arg list
   }
 
-and arg = Arg of actual
+and arg =
+  | Arg of actual
+  | ArgInline of
+      { prod : producer list
+      ; action : code node
+      }
 
-type producer =
+and producer =
   { id : string node option
   ; actual : actual
   }

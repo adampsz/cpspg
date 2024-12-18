@@ -225,11 +225,8 @@ struct
     | true, true -> Format.fprintf f "_c%d_%s_starting" idx (nterm_name group.g_symbol)
   ;;
 
-  let write_semantic_action_id f action idx =
-    if S.readable_ids
-    then Format.fprintf f "a%d_%s" idx action.sa_rule.data
-    else Format.fprintf f "a%d" idx
-  ;;
+  (* TODO: Include rule name in action name when [S.readable_ids] is enabled *)
+  let write_semantic_action_id f _action idx = Format.fprintf f "a%d" idx
 
   let write_state_id f idx =
     if S.readable_ids then Format.fprintf f "state_%d" idx else Format.fprintf f "s%d" idx

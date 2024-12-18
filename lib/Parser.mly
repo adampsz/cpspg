@@ -81,7 +81,8 @@ args:
 
 %inline
 arg:
-  | x=actual { Arg x }
+  | x=actual                   { Arg x }
+  | prod=producer* action=code { ArgInline { prod; action } }
 ;
 
 symbol:

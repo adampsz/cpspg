@@ -158,18 +158,18 @@ module Run (S : Types.Settings) (A : Types.Ast) : Types.Grammar = struct
       Terminal.dummy
   ;;
 
-  let tr_action rule idx prod =
+  let tr_action (prod : Ast.producer list) (code : Ast.code node) =
     let get_args = function
       | { Ast.id = None; Ast.actual = _; _ } -> None
       | { Ast.id = Some id; _ } -> Some id.data
     in
-    let args = List.map get_args prod.Ast.prod in
-    match Hashtbl.find_opt actions (rule.Ast.id.data, idx) with
+    let args = List.map get_args prod in
+    match Hashtbl.find_opt actions (code, args) with
     | Some (id, _) -> id
     | None ->
-      let action = { sa_args = args; sa_code = prod.Ast.action; sa_rule = rule.Ast.id }
+      let action = { sa_args = args; sa_code = code }
       and id = Hashtbl.length actions in
-      Hashtbl.add actions (rule.Ast.id.data, idx) (id, action);
+      Hashtbl.add actions (code, args) (id, action);
       id
   ;;
 
@@ -219,12 +219,12 @@ module Run (S : Types.Settings) (A : Types.Ast) : Types.Grammar = struct
       VSymbol (Term (tr_term t))
     | Ast.NTerm id, None -> get_nterm id actual.args
 
-  and tr_production env rule idx prod =
+  and tr_production env prod =
     let values = List.map (fun p -> tr_actual env p.Ast.actual) prod.Ast.prod in
     let get_prec p = Hashtbl.find_opt prec (sym_name p).data in
     let get_group suffix args =
       { i_suffix = suffix
-      ; i_action = Some { ac_id = tr_action rule idx prod; ac_args = args }
+      ; i_action = Some { ac_id = tr_action prod.prod prod.action; ac_args = args }
       ; i_prec = Option.bind prod.Ast.prec get_prec
       }
     in
@@ -234,6 +234,8 @@ module Run (S : Types.Settings) (A : Types.Ast) : Types.Grammar = struct
   and tr_args env args =
     let tr_arg = function
       | Ast.Arg actual -> tr_actual env actual
+      | Ast.ArgInline { prod; action } ->
+        VInline (tr_production env { prod; action; prec = None })
     in
     List.map tr_arg args
 
@@ -248,7 +250,7 @@ module Run (S : Types.Settings) (A : Types.Ast) : Types.Grammar = struct
       let id = InstanceMap.length nterm_id |> Nonterminal.of_int in
       InstanceMap.add nterm_id (rule, args) id;
       let env = init_env rule.Ast.id.loc rule.Ast.params args in
-      let items = List.mapi (tr_production env rule) rule.prods |> List.flatten in
+      let items = List.map (tr_production env) rule.prods |> List.flatten in
       let info = { ni_name = rule.id; ni_starting = false }
       and group =
         { g_symbol = id
